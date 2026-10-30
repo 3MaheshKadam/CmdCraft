@@ -1,0 +1,2247 @@
+# Linux for DevOps Engineering — Complete Syllabus & Command Reference
+
+**Document purpose:** Structured training curriculum for Linux administration, DevOps fundamentals, troubleshooting, and interview preparation.
+
+**Target learner:** Software developer transitioning toward DevOps, Cloud Engineering, and production infrastructure.
+
+**Learning approach:** Concept → purpose → syntax → command flags → practical example → production use case → interview questions → hands-on lab.
+
+**Status definitions:**
+- **COMPLETED:** Covered in the learning sessions. Hands-on mastery should still be verified.
+- **IN PROGRESS:** Currently being studied.
+- **PENDING:** Not yet covered systematically.
+- **EXTENSION:** Additional recommended topics beyond the initial syllabus.
+
+---
+
+# 1. Curriculum Overview & Modules
+
+## Recommended learning order
+
+| No. | Module | Target level | Status |
+|---|---|---|---|
+| 1 | Linux Fundamentals & Architecture | Beginner | EXTENSION |
+| 2 | Terminal Navigation & Filesystem | Beginner | COMPLETED — filesystem fundamentals |
+| 3 | File and Directory Management | Beginner | EXTENSION |
+| 4 | File Permissions & Ownership | Beginner–Intermediate | COMPLETED |
+| 5 | Users, Groups & Privilege Management | Beginner–Intermediate | COMPLETED |
+| 6 | Pipes, Redirection & Streams | Beginner–Intermediate | EXTENSION — concepts partially encountered |
+| 7 | Searching & Filtering Text | Beginner–Intermediate | COMPLETED — grep, find |
+| 8 | Text Processing & Log Analysis | Intermediate | COMPLETED — awk, sed, head, tail |
+| 9 | Process Management | Intermediate | COMPLETED |
+| 10 | Services & systemd | Intermediate | COMPLETED |
+| 11 | Logs & Journal Management | Intermediate | COMPLETED |
+| 12 | Scheduled Jobs & Cron | Intermediate | COMPLETED |
+| 13 | Linux Networking | Intermediate | COMPLETED — core command lessons |
+| 14 | Disk, Filesystems & Storage Management | Intermediate–Advanced | IN PROGRESS |
+| 15 | SSH & Remote Access | Intermediate | PENDING |
+| 16 | SCP & Remote File Transfers | Beginner–Intermediate | PENDING |
+| 17 | Terminal Editors: Vim & Nano | Beginner–Intermediate | PENDING |
+| 18 | Package Management | Beginner–Intermediate | PENDING |
+| 19 | Archives, Compression & Backup | Beginner–Intermediate | PENDING |
+| 20 | Environment Variables & Configuration | Intermediate | EXTENSION |
+| 21 | Bash Scripting & Automation | Intermediate | EXTENSION |
+| 22 | System Resource Monitoring & Performance | Intermediate–Advanced | EXTENSION |
+| 23 | Security & Hardening | Intermediate–Advanced | EXTENSION |
+| 24 | Troubleshooting & Production Incident Response | Advanced | INTEGRATION / PRACTICE |
+| 25 | Linux Interview Assessment & Capstone | Intermediate–Advanced | PENDING |
+
+**Important:** COMPLETED means the topic has been taught, not that independent practical proficiency has been formally assessed.
+
+---
+
+# 2. Command & Flag Inventory Per Module
+
+## Module 1 — Linux Fundamentals & Architecture
+
+**Target level:** Beginner  
+**Status:** Extension recommended
+
+### Learning objectives
+- Understand Linux distributions and the Linux kernel.
+- Understand the shell, terminal, command, process, and filesystem.
+- Understand absolute versus relative paths.
+- Understand root user versus regular users.
+- Understand the purpose of common Linux directories.
+- Learn how to read command help and documentation.
+
+### Core commands
+
+- `whoami` — current username.
+- `id` — UID, GID, and supplementary groups.
+- `uname` — kernel and system information.
+- `uname -a` — detailed system information.
+- `cat /etc/os-release` — distribution details.
+- `man COMMAND` — manual page.
+- `COMMAND --help` — command usage.
+- `history` — shell command history.
+- `pwd` — current working directory.
+
+### Common syntax
+
+```bash
+whoami
+id
+uname -a
+cat /etc/os-release
+man ls
+ls --help
+history
+pwd
+```
+
+### Key concepts
+- Kernel versus shell.
+- CLI versus GUI.
+- Root privileges and `sudo`.
+- Filesystem hierarchy.
+- Exit codes and command output.
+- Standard input, standard output, and standard error.
+
+### Common mistakes
+- Running privileged commands without understanding their effects.
+- Copying commands without understanding the flags.
+- Assuming commands work identically across every Linux distribution.
+- Confusing a shell command with a separate executable.
+
+---
+
+## Module 2 — Terminal Navigation & Filesystem
+
+**Target level:** Beginner  
+**Status:** COMPLETED — filesystem fundamentals
+
+### Learning objectives
+- Navigate Linux directories.
+- Understand the filesystem hierarchy.
+- Locate configuration, logs, application files, and user files.
+- Understand absolute and relative paths.
+
+### Core commands
+
+- `pwd`
+- `ls`
+- `cd`
+- `tree`
+- `realpath`
+- `stat`
+
+### Crucial flags and modifiers
+
+- `ls -l` — detailed listing.
+- `ls -a` — include hidden files.
+- `ls -la` — detailed listing including hidden files.
+- `ls -lh` — human-readable file sizes.
+- `cd ..` — parent directory.
+- `cd ~` — home directory.
+- `cd -` — previous directory.
+- `stat FILE` — metadata about a file.
+
+### Common syntax
+
+```bash
+pwd
+ls
+ls -la
+ls -lh
+cd /var/log
+cd ..
+cd ~
+cd -
+stat /etc/hosts
+```
+
+### Important directories
+
+| Directory | Purpose |
+|---|---|
+| `/` | Filesystem root |
+| `/home` | Regular users' home directories |
+| `/root` | Root user's home directory |
+| `/etc` | System configuration |
+| `/var` | Variable data, logs, caches, and application state |
+| `/var/log` | Common location for logs |
+| `/tmp` | Temporary files |
+| `/usr` | Installed programs and shared resources |
+| `/opt` | Optional or third-party software |
+| `/dev` | Device files |
+| `/proc` | Virtual filesystem exposing process and kernel information |
+| `/sys` | Kernel and device information |
+| `/mnt` | Common manual mount point |
+| `/media` | Common removable-media mount point |
+| `/boot` | Boot-related files |
+
+### Common mistakes
+- Assuming `cd` changes the system-wide working directory. It changes the current shell's directory.
+- Forgetting that names beginning with `.` are hidden in normal `ls` output.
+- Confusing `/` with `/root`.
+- Assuming every distribution uses identical directory layouts.
+
+---
+
+## Module 3 — File and Directory Management
+
+**Target level:** Beginner  
+**Status:** EXTENSION
+
+### Learning objectives
+- Create, copy, move, rename, and delete files.
+- Create directory structures.
+- Inspect file types and contents.
+- Avoid destructive file operations.
+
+### Core commands
+
+- `touch`
+- `mkdir`
+- `cp`
+- `mv`
+- `rm`
+- `rmdir`
+- `file`
+- `cat`
+- `less`
+- `more`
+- `ln`
+
+### Crucial flags
+
+- `mkdir -p` — create parent directories as required.
+- `cp -r` — recursively copy directories.
+- `cp -a` — archive-style copy, preserving attributes where supported.
+- `mv -i` — prompt before overwriting.
+- `rm -i` — prompt before deleting.
+- `rm -r` — recursively remove directories.
+- `rm -f` — force removal without prompting for missing files.
+- `ln -s` — create a symbolic link.
+
+### Common syntax
+
+```bash
+touch app.log
+mkdir logs
+mkdir -p project/config
+cp app.conf app.conf.backup
+cp -r config/ config-backup/
+mv old-name.txt new-name.txt
+rm -i temporary.txt
+rmdir empty-directory
+file app.log
+less /var/log/syslog
+ln -s /opt/myapp/current /opt/myapp/active
+```
+
+### Common mistakes
+- Using `rm -rf` without checking the path.
+- Forgetting the destination when copying directories.
+- Assuming a symbolic link contains a copy of the target data.
+- Editing production configuration without creating a backup.
+- Deleting files without checking which application depends on them.
+
+---
+
+## Module 4 — Permissions, Ownership & Access Control
+
+**Target level:** Beginner–Intermediate  
+**Status:** COMPLETED
+
+### Learning objectives
+- Read Linux permission strings.
+- Understand owner, group, and others.
+- Understand read, write, and execute permissions.
+- Change permissions and ownership.
+- Understand directory-specific permission behavior.
+- Diagnose permission-denied errors.
+
+### Core commands
+
+- `ls -l`
+- `chmod`
+- `chown`
+- `chgrp`
+- `umask`
+- `stat`
+- `namei`
+
+### Crucial flags and modifiers
+
+- `chmod 755 FILE`
+- `chmod 644 FILE`
+- `chmod +x FILE`
+- `chmod u+x FILE`
+- `chmod -R` — recursive change; use carefully.
+- `chown USER FILE`
+- `chown USER:GROUP FILE`
+- `chown -R` — recursive ownership change.
+- `chgrp GROUP FILE`
+- `umask` — inspect or set the default permission mask.
+- `namei -l PATH` — inspect permissions along a path.
+
+### Permission reference
+
+| Permission | Numeric value | File meaning | Directory meaning |
+|---|---:|---|---|
+| Read (`r`) | 4 | Read contents | List directory entries |
+| Write (`w`) | 2 | Modify contents | Create, delete, or rename entries, subject to other permissions |
+| Execute (`x`) | 1 | Execute file if applicable | Traverse/access entries |
+
+### Common syntax
+
+```bash
+ls -l app.sh
+chmod +x app.sh
+chmod 755 app.sh
+chmod 644 app.conf
+chmod u+x deploy.sh
+chown ubuntu app.log
+sudo chown ubuntu:developers app.log
+sudo chgrp developers app.log
+umask
+namei -l /opt/myapp/app.sh
+```
+
+### Common mistakes
+- Giving every file `777` permissions to fix access problems.
+- Forgetting that directory traversal requires execute permission.
+- Changing ownership recursively on a system directory without understanding the consequences.
+- Assuming `chmod +x` makes a script executable if its interpreter, path, or mount configuration is invalid.
+- Forgetting that the effective user and supplementary groups determine access.
+
+### Production principle
+Grant only the minimum permissions the application needs.
+
+---
+
+## Module 5 — Users, Groups & Privilege Management
+
+**Target level:** Beginner–Intermediate  
+**Status:** COMPLETED
+
+### Learning objectives
+- Inspect users and groups.
+- Understand UID and GID.
+- Create, modify, and remove users.
+- Manage supplementary groups.
+- Understand `sudo` and least privilege.
+
+### Core commands
+
+- `whoami`
+- `id`
+- `who`
+- `w`
+- `groups`
+- `getent`
+- `useradd`
+- `usermod`
+- `userdel`
+- `groupadd`
+- `groupdel`
+- `passwd`
+- `sudo`
+
+### Crucial flags
+
+- `useradd -m` — create a home directory.
+- `usermod -aG GROUP USER` — append a supplementary group.
+- `userdel -r USER` — delete the user and associated home/mail files where applicable.
+- `getent passwd USER` — query user database.
+- `getent group GROUP` — query group database.
+
+### Common syntax
+
+```bash
+whoami
+id
+groups
+getent passwd ubuntu
+getent group developers
+sudo groupadd developers
+sudo useradd -m developer
+sudo passwd developer
+sudo usermod -aG developers developer
+sudo userdel -r developer
+```
+
+### Common mistakes
+- Using `usermod -G` without `-a` and accidentally replacing supplementary group memberships.
+- Removing a user while their processes or files still require investigation.
+- Sharing the root account instead of creating individual accounts.
+- Granting unrestricted `sudo` access unnecessarily.
+- Assuming new group membership is immediately reflected in an existing session.
+
+---
+
+## Module 6 — Pipes, Redirection & Streams
+
+**Target level:** Beginner–Intermediate  
+**Status:** EXTENSION — reinforce as a standalone module
+
+### Learning objectives
+- Understand standard input, output, and error.
+- Combine commands with pipes.
+- Redirect output to files.
+- Capture errors.
+- Use pipelines for operational troubleshooting.
+
+### Core operators and commands
+
+- `|`
+- `>`
+- `>>`
+- `<`
+- `2>`
+- `2>&1`
+- `/dev/null`
+- `tee`
+- `xargs`
+- `sort`
+- `uniq`
+- `cut`
+- `wc`
+
+### Common syntax
+
+```bash
+ls -la | less
+ps aux | grep nginx
+cat app.log | grep ERROR
+
+command > output.txt
+command >> output.txt
+command 2> errors.log
+command > output.log 2>&1
+command > /dev/null 2>&1
+
+df -h | tee disk-report.txt
+grep -r "ERROR" /var/log
+sort names.txt | uniq
+wc -l app.log
+cut -d: -f1 /etc/passwd
+```
+
+### Important distinctions
+- `>` overwrites the destination file.
+- `>>` appends to the destination file.
+- `2>` redirects standard error.
+- `2>&1` redirects standard error to the current standard-output destination.
+- `|` passes one command's standard output to the next command.
+- `tee` writes output to a file and also passes it onward.
+
+### Common mistakes
+- Accidentally overwriting important files with `>`.
+- Forgetting that a pipe normally passes standard output, not standard error.
+- Misunderstanding the order of redirections.
+- Assuming a pipeline fails if any command fails. In Bash, consider `set -o pipefail` when pipeline failure must be detected.
+
+---
+
+## Module 7 — Searching Files and Text with `grep` and `find`
+
+**Target level:** Beginner–Intermediate  
+**Status:** COMPLETED
+
+### A. `grep`
+
+**Purpose:** Search file contents or command output.
+
+#### Core flags
+
+- `-i` — case-insensitive search.
+- `-n` — show line numbers.
+- `-c` — count matching lines.
+- `-v` — show non-matching lines.
+- `-r` — recursively search directories.
+- `-w` — match whole words.
+- `-E` — extended regular expressions.
+- `-l` — print filenames containing matches.
+- `-A N` — show N lines after a match.
+- `-B N` — show N lines before a match.
+- `-C N` — show context before and after a match.
+
+#### Common syntax
+
+```bash
+grep "Payment" server.log
+grep -i "error" app.log
+grep -n "ERROR" app.log
+grep -c "ERROR" app.log
+grep -v "DEBUG" app.log
+grep -r "DATABASE_URL" project/
+grep -w "cat" file.txt
+grep -E "ERROR|WARN" app.log
+grep -n -C 3 "failed" app.log
+grep -l "connection refused" /var/log/*.log
+tail -f app.log | grep --line-buffered ERROR
+```
+
+### B. `find`
+
+**Purpose:** Search for files and directories based on attributes.
+
+#### Core flags and expressions
+
+- `-name` — case-sensitive name match.
+- `-iname` — case-insensitive name match.
+- `-type f` — regular files.
+- `-type d` — directories.
+- `-size` — file size.
+- `-mtime` — modification time in 24-hour periods.
+- `-user` — owner.
+- `-group` — group.
+- `-perm` — permissions.
+- `-empty` — empty files/directories.
+- `-exec` — execute a command on matching items.
+- `-delete` — delete matching items.
+- `-maxdepth` — limit search depth.
+
+#### Common syntax
+
+```bash
+find . -name "app.js"
+find . -iname "readme.md"
+find . -type f
+find . -type d
+find . -empty
+find . -size +100M
+find . -user ubuntu
+find . -group developers
+find . -perm 777
+find . -mtime -7
+find . -mtime +30
+find . -maxdepth 2 -type f
+find /var/log -type f -name "*.log"
+find . -name "*.sh" -exec chmod +x {} \;
+find . -type f -name "*.tmp" -print
+```
+
+**Safe deletion workflow:**
+
+```bash
+find /path/to/logs -type f -name "*.tmp" -print
+# Review the results first.
+find /path/to/logs -type f -name "*.tmp" -delete
+```
+
+### Common mistakes
+- Confusing searching file names with searching file contents.
+- Running recursive searches against huge directory trees unnecessarily.
+- Using `-delete` before reviewing matches.
+- Misunderstanding `-mtime` rounding and its 24-hour periods.
+- Assuming `-perm 777` finds every file that is writable by everyone; it matches the specified permission bits according to `find`'s permission semantics.
+
+---
+
+## Module 8 — Text Processing: `awk`, `sed`, `head`, `tail`
+
+**Target level:** Intermediate  
+**Status:** COMPLETED
+
+### A. `awk`
+
+**Purpose:** Extract fields, filter records, and calculate summaries.
+
+#### Core concepts
+- `$0` — entire current record.
+- `$1`, `$2`, etc. — fields.
+- `NR` — current record number.
+- `NF` — number of fields.
+- `-F` — field separator.
+- `BEGIN` — execute before processing records.
+- `END` — execute after processing records.
+
+#### Common syntax
+
+```bash
+awk '{print $1}' employees.txt
+awk '{print $1, $3}' employees.txt
+awk '$2 > 60000' employees.txt
+awk '$3 == "DevOps"' employees.txt
+awk '{print NR, $0}' employees.txt
+awk 'END {print NR}' employees.txt
+awk '{sum += $2} END {print sum}' employees.txt
+awk '{sum += $2} END {if (NR > 0) print sum/NR}' employees.txt
+awk -F: '{print $1}' /etc/passwd
+df -h | awk 'NR > 1 {print $1, $5}'
+```
+
+### B. `sed`
+
+**Purpose:** Transform text in a stream or file.
+
+#### Core syntax
+
+```text
+sed 's/old/new/' FILE
+```
+
+#### Crucial modifiers
+- `s` — substitute.
+- `g` — replace all matches on each line.
+- `-i` — edit the file in place.
+- `-n` — suppress automatic output.
+- `p` — print selected lines.
+- `d` — delete selected lines.
+- `a` — append after a line.
+- `i` — insert before a line.
+
+#### Common syntax
+
+```bash
+sed 's/development/production/' app.conf
+sed 's/apple/mango/g' fruits.txt
+sed -n '5p' file.txt
+sed -n '5,10p' file.txt
+sed '3d' file.txt
+sed '/^$/d' file.txt
+sed '2a New Configuration' file.txt
+sed '2i New Line' file.txt
+sed -i.bak 's/development/production/g' app.conf
+```
+
+### C. `head` and `tail`
+
+**Purpose:** Inspect the beginning or end of files.
+
+#### Common syntax
+
+```bash
+head file.txt
+head -n 20 file.txt
+tail file.txt
+tail -n 100 application.log
+tail -f application.log
+tail -n +500 file.txt
+tail -f application.log | grep --line-buffered ERROR
+```
+
+- `head -n N` — first N lines.
+- `tail -n N` — last N lines.
+- `tail -f` — follow appended data.
+- `tail -n +N` — print starting at line N.
+
+### Common mistakes
+- Editing configuration files in place without a backup.
+- Replacing a generic number or word and accidentally changing unrelated settings.
+- Forgetting that `awk` uses field separators and whitespace handling.
+- Using `tail -f` without a plan to stop it (`Ctrl+C`).
+- Assuming `tail -f` handles every log rotation pattern identically; `tail -F` can be useful for following a filename through rotation/recreation.
+
+---
+
+## Module 9 — Process Management
+
+**Target level:** Intermediate  
+**Status:** COMPLETED
+
+### Learning objectives
+- Understand processes, PIDs, and parent PIDs.
+- Inspect resource usage.
+- Identify CPU and memory consumers.
+- Send signals safely.
+- Manage foreground and background jobs.
+- Understand process states and zombies.
+
+### Core commands
+
+- `ps`
+- `top`
+- `htop`
+- `pgrep`
+- `pkill`
+- `kill`
+- `killall`
+- `jobs`
+- `bg`
+- `fg`
+- `nohup`
+- `disown`
+- `pstree`
+
+### Crucial flags
+
+- `ps -e` — all processes.
+- `ps aux` — detailed process listing.
+- `ps -ef` — full-format listing.
+- `ps -p PID` — inspect a particular PID.
+- `ps -eo` — choose displayed fields.
+- `ps --sort=-%cpu` — sort by CPU use.
+- `ps --sort=-%mem` — sort by memory use.
+- `pgrep -l` — show process names with PIDs.
+- `pgrep -a` — show command lines.
+- `kill -15 PID` — request graceful termination.
+- `kill -9 PID` — force termination.
+- `kill -0 PID` — test whether signalling is permitted and the process can be addressed.
+- `nohup COMMAND &` — run a command that ignores hangup signals, with output redirected as appropriate.
+
+### Common syntax
+
+```bash
+ps
+ps -e
+ps aux
+ps -ef --forest
+ps -eo pid,ppid,user,%cpu,%mem,cmd
+ps aux --sort=-%cpu | head
+ps aux --sort=-%mem | head
+
+top
+htop
+
+pgrep nginx
+pgrep -a node
+kill -15 1234
+kill -9 1234
+kill -l
+
+jobs
+command &
+bg %1
+fg %1
+nohup python3 app.py > app.log 2>&1 &
+disown %1
+```
+
+### Process states
+- `R` — running or runnable.
+- `S` — interruptible sleep.
+- `D` — uninterruptible sleep, often waiting for I/O.
+- `T` — stopped or traced.
+- `Z` — zombie.
+
+### Common mistakes
+- Using `kill -9` before attempting graceful shutdown.
+- Running `pkill node` without checking whether multiple processes match.
+- Confusing a shell job number with a PID.
+- Assuming `jobs` lists all system processes; it lists jobs known to the current shell.
+- Using `nohup` as a replacement for proper production service supervision.
+- Forgetting that a zombie process has already exited and requires its parent to reap it.
+
+### Production principle
+For a systemd-managed application, prefer `systemctl stop` or `systemctl restart` over manually killing the process.
+
+---
+
+## Module 10 — systemd and Service Management
+
+**Target level:** Intermediate  
+**Status:** COMPLETED
+
+### Learning objectives
+- Understand services and units.
+- Start, stop, restart, and reload services.
+- Enable services at boot.
+- Inspect failed services.
+- Understand custom unit files.
+
+### Core commands
+
+- `systemctl`
+- `systemd-analyze`
+- `systemctl status`
+- `systemctl start`
+- `systemctl stop`
+- `systemctl restart`
+- `systemctl reload`
+- `systemctl enable`
+- `systemctl disable`
+- `systemctl daemon-reload`
+
+### Common syntax
+
+```bash
+sudo systemctl status nginx
+sudo systemctl start nginx
+sudo systemctl stop nginx
+sudo systemctl restart nginx
+sudo systemctl reload nginx
+sudo systemctl enable nginx
+sudo systemctl disable nginx
+sudo systemctl enable --now nginx
+systemctl is-active nginx
+systemctl is-enabled nginx
+systemctl --failed
+sudo systemctl daemon-reload
+```
+
+### Key distinctions
+- `start` — start now.
+- `enable` — configure automatic startup at boot.
+- `restart` — stop and start again.
+- `reload` — request a configuration reload if supported.
+- `daemon-reload` — reread systemd unit definitions.
+
+### Custom service example
+
+File: `/etc/systemd/system/myapp.service`
+
+```ini
+[Unit]
+Description=My Application
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/opt/myapp
+ExecStart=/usr/bin/python3 /opt/myapp/app.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Apply and start:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl start myapp
+sudo systemctl enable myapp
+sudo systemctl status myapp
+```
+
+### Common mistakes
+- Editing a unit file but forgetting `daemon-reload`.
+- Assuming `enable` automatically starts a service immediately.
+- Using `reload` when a service does not support it.
+- Running a production application as root without a strong reason.
+- Setting `Restart=always` without considering crash loops and failure behavior.
+
+---
+
+## Module 11 — Logging and `journalctl`
+
+**Target level:** Intermediate  
+**Status:** COMPLETED
+
+### Learning objectives
+- Inspect systemd-managed application logs.
+- Filter logs by service, time, boot, and severity.
+- Investigate service failures.
+- Understand journal storage and retention.
+
+### Core commands and flags
+
+- `journalctl`
+- `-u SERVICE` — filter by unit.
+- `-n N` — last N entries.
+- `-f` — follow new entries.
+- `-b` — current boot.
+- `-b -1` — previous boot.
+- `--list-boots` — list recorded boots.
+- `--since` and `--until` — time filters.
+- `-p err` — error priority and more severe messages.
+- `-k` — kernel messages.
+- `--disk-usage` — journal disk usage.
+- `--vacuum-time` — remove archived journal files older than a duration.
+- `--vacuum-size` — reduce archived journal storage to a size target.
+
+### Common syntax
+
+```bash
+journalctl
+sudo journalctl -u nginx
+sudo journalctl -u nginx -n 50
+sudo journalctl -u nginx -f
+journalctl -b
+journalctl -b -1
+journalctl --list-boots
+journalctl --since today
+journalctl --since "15:00" --until "16:00"
+sudo journalctl -u nginx -p err
+journalctl -k
+journalctl --disk-usage
+sudo journalctl --vacuum-time=7d
+sudo journalctl --vacuum-size=500M
+```
+
+### Common mistakes
+- Looking only at the last log line instead of the relevant time window.
+- Assuming all application logs are stored in the systemd journal.
+- Deleting logs without understanding retention or incident investigation requirements.
+- Assuming journal vacuum commands remove every log file on the machine.
+
+---
+
+## Module 12 — Cron and Scheduled Tasks
+
+**Target level:** Intermediate  
+**Status:** COMPLETED
+
+### Learning objectives
+- Schedule recurring tasks.
+- Understand cron expression fields.
+- Inspect user and root crontabs.
+- Debug failed scheduled jobs.
+- Redirect job output to logs.
+
+### Core commands
+
+- `crontab -l`
+- `crontab -e`
+- `crontab -r`
+- `systemctl status cron`
+- `journalctl -u cron`
+
+### Cron expression
+
+```text
+* * * * * COMMAND
+│ │ │ │ │
+│ │ │ │ └── Day of week
+│ │ │ └──── Month
+│ │ └────── Day of month
+│ └──────── Hour
+└────────── Minute
+```
+
+### Common examples
+
+```cron
+0 2 * * * /home/ubuntu/backup.sh
+*/5 * * * * /home/ubuntu/health-check.sh
+0 * * * * /home/ubuntu/report.sh
+0 2 * * 0 /home/ubuntu/cleanup.sh
+0 9 * * 1-5 /home/ubuntu/report.sh
+0 0 1 * * /home/ubuntu/monthly.sh
+@reboot /home/ubuntu/startup.sh
+```
+
+Capture output:
+
+```cron
+0 2 * * * /home/ubuntu/backup.sh >> /var/log/backup.log 2>&1
+```
+
+### Common mistakes
+- Using relative file paths.
+- Assuming cron inherits the interactive shell's environment.
+- Forgetting execute permissions.
+- Scheduling a script without checking its exit code or logs.
+- Editing root's crontab when the job should run as an ordinary user, or vice versa.
+- Using `crontab -r` unintentionally; it removes the current user's crontab.
+
+---
+
+## Module 13 — Linux Networking
+
+**Target level:** Intermediate  
+**Status:** COMPLETED — core commands taught; practical validation pending
+
+### Learning objectives
+- Inspect network interfaces and IP addresses.
+- Understand routing and gateways.
+- Check network reachability.
+- Inspect listening ports and processes.
+- Test HTTP responses.
+- Troubleshoot DNS.
+- Inspect network paths.
+
+### A. Interface and route commands
+
+```bash
+ip addr
+ip a
+ip link
+ip route
+hostname
+hostnamectl
+```
+
+Key concepts:
+- Interface state: UP/DOWN.
+- IPv4 and IPv6 addresses.
+- Loopback: `127.0.0.1`.
+- Default gateway and routing table.
+
+### B. Reachability and HTTP
+
+```bash
+ping -c 4 8.8.8.8
+ping -c 4 google.com
+curl -I https://example.com
+curl -v https://example.com
+curl http://localhost:3000
+wget https://example.com/file.zip
+wget -O app.zip https://example.com/file.zip
+wget -c https://example.com/file.zip
+```
+
+### C. Listening ports and connections
+
+```bash
+ss -tuln
+sudo ss -tulpn
+ss -tulpn | grep 3000
+netstat -tuln
+```
+
+Key flags:
+- `-t` — TCP.
+- `-u` — UDP.
+- `-l` — listening sockets.
+- `-n` — numeric addresses and ports.
+- `-p` — process information, when permitted.
+
+`ss` is generally preferred over the older `netstat` utility.
+
+### D. DNS troubleshooting
+
+```bash
+nslookup google.com
+nslookup google.com 8.8.8.8
+
+dig google.com
+dig +short google.com
+dig google.com A
+dig google.com AAAA
+dig google.com MX
+dig google.com NS
+dig www.example.com CNAME
+```
+
+DNS record types:
+- `A` — IPv4 address.
+- `AAAA` — IPv6 address.
+- `MX` — mail server.
+- `NS` — authoritative name server.
+- `CNAME` — alias to another domain name.
+
+### E. Network path
+
+```bash
+traceroute google.com
+```
+
+The `traceroute` utility may require installation.
+
+### Common mistakes
+- Assuming failed `ping` means the server is down.
+- Assuming DNS resolution proves the application is healthy.
+- Assuming a listening port is accessible externally.
+- Ignoring host firewalls, cloud security groups, routing, and network ACLs.
+- Assuming `* * *` in traceroute conclusively indicates a broken route.
+- Using `localhost` to test external reachability; localhost refers to the local machine.
+
+### Troubleshooting sequence
+
+```text
+DNS → IP/interface → Route → Port → HTTP response → Application logs
+```
+
+---
+
+## Module 14 — Disk Management, Filesystems & Storage
+
+**Target level:** Intermediate–Advanced  
+**Status:** IN PROGRESS
+
+### Learning objectives
+- Inspect disk and filesystem usage.
+- Identify large directories and files.
+- Inspect disks and partitions.
+- Understand filesystems and mount points.
+- Create and mount filesystems safely.
+- Understand persistent mounts and `/etc/fstab`.
+- Understand swap and storage expansion.
+- Troubleshoot a full disk.
+
+### A. Filesystem and directory usage
+
+Core commands:
+- `df`
+- `du`
+- `sort`
+- `find`
+
+Common syntax:
+
+```bash
+df -h
+df -h /
+df -i
+du -sh ~/*
+sudo du -sh /var/*
+sudo du -sh /var/log/*
+sudo du -sh /var/lib/docker
+sudo du -ah /var | sort -h | tail -n 20
+find /var/log -type f -size +100M -print
+```
+
+Important flags:
+- `df -h` — human-readable filesystem usage.
+- `df -i` — inode usage.
+- `du -s` — summary.
+- `du -h` — human-readable sizes.
+- `find -size +100M` — files larger than 100 MB.
+
+### B. Disks and partitions
+
+Core commands:
+- `lsblk`
+- `lsblk -f`
+- `blkid`
+- `fdisk`
+- `parted`
+- `partprobe`
+
+Common syntax:
+
+```bash
+lsblk
+lsblk -f
+sudo blkid
+sudo fdisk -l
+```
+
+`fdisk` and `parted` should initially be used for inspection. Partition modifications require a verified device name and a backup of important data.
+
+### C. Filesystem creation and checks
+
+Core commands:
+- `mkfs`
+- `fsck`
+- `e2fsck`
+- `xfs_repair`
+
+Examples for study:
+
+```bash
+sudo mkfs.ext4 /dev/DEVICE_PARTITION
+sudo fsck /dev/DEVICE_PARTITION
+```
+
+**Safety rule:** Never copy these commands with a placeholder replaced by a guessed device. Filesystem creation destroys existing filesystem data. Filesystem checks and repairs must follow filesystem-specific procedures; do not run repair tools against a mounted, active filesystem unless the tool explicitly supports that operation.
+
+### D. Mounting and persistent mounts
+
+Core commands:
+- `mount`
+- `umount`
+- `findmnt`
+- `/etc/fstab`
+- `mount -a`
+
+Common syntax:
+
+```bash
+findmnt
+mount
+sudo mount /dev/DEVICE_PARTITION /mnt/data
+findmnt /mnt/data
+sudo umount /mnt/data
+sudo mount -a
+```
+
+Persistent mounts use `/etc/fstab`, often referencing filesystem UUIDs obtained through `blkid`.
+
+Example structure:
+
+```text
+UUID=<filesystem-uuid>  /data  ext4  defaults  0  2
+```
+
+This is a template, not a literal configuration to paste.
+
+Validate `/etc/fstab` carefully before rebooting. A bad entry can cause boot or mount problems.
+
+### E. Swap
+
+Core commands:
+- `free -h`
+- `swapon --show`
+- `swapoff`
+- `mkswap`
+
+Common syntax:
+
+```bash
+free -h
+swapon --show
+cat /proc/swaps
+```
+
+Creating swap space and changing swap configuration are advanced practical exercises and should be done only after understanding the host's existing memory and storage setup.
+
+### F. Storage troubleshooting
+
+```text
+Application fails
+      ↓
+journalctl / service status
+      ↓
+df -h and df -i
+      ↓
+du -sh to identify usage
+      ↓
+find large files
+      ↓
+Inspect ownership, retention and open files
+      ↓
+Clean up safely or expand storage
+      ↓
+Verify service health
+```
+
+### Common mistakes
+- Deleting active logs or application data without a retention plan.
+- Confusing filesystem capacity with directory size.
+- Forgetting inode exhaustion.
+- Formatting the wrong disk.
+- Editing `/etc/fstab` without testing it.
+- Assuming deleting an open file always immediately frees disk space.
+- Removing Docker data directly from `/var/lib/docker` instead of using Docker-aware cleanup.
+- Running filesystem repairs against mounted filesystems without appropriate precautions.
+
+---
+
+## Module 15 — SSH and Secure Remote Access
+
+**Target level:** Intermediate  
+**Status:** PENDING
+
+### Learning objectives
+- Connect to remote Linux servers.
+- Authenticate using SSH keys.
+- Inspect SSH configuration.
+- Understand host-key verification.
+- Copy and manage SSH keys securely.
+- Troubleshoot connection failures.
+
+### Core commands
+
+- `ssh`
+- `ssh-keygen`
+- `ssh-copy-id`
+- `ssh-agent`
+- `ssh-add`
+- `scp`
+- `sftp`
+- `ss`
+- `systemctl`
+- `journalctl`
+
+### Crucial flags
+- `-i KEYFILE` — select identity file.
+- `-p PORT` — select SSH port.
+- `-v` — verbose diagnostics.
+- `-J HOST` — use a jump host.
+- `ssh-keygen -t ed25519` — create an Ed25519 key pair.
+
+### Common syntax
+
+```bash
+ssh ubuntu@SERVER_IP
+ssh -i ~/.ssh/id_ed25519 ubuntu@SERVER_IP
+ssh -p 2222 ubuntu@SERVER_IP
+ssh -v ubuntu@SERVER_IP
+ssh-keygen -t ed25519
+ssh-add ~/.ssh/id_ed25519
+```
+
+### Important files
+- `~/.ssh/config` — per-user SSH client configuration.
+- `~/.ssh/authorized_keys` — public keys allowed to log in to an account.
+- `~/.ssh/known_hosts` — previously trusted host keys.
+- `/etc/ssh/sshd_config` — server-side SSH daemon configuration.
+
+### Common mistakes
+- Disabling host-key verification to bypass warnings.
+- Sharing private keys.
+- Setting private-key permissions too loosely.
+- Opening SSH to the internet without access controls.
+- Confusing SSH client configuration with server configuration.
+- Restarting the SSH service without verifying configuration syntax and keeping an existing recovery session.
+
+---
+
+## Module 16 — SCP and Remote File Transfer
+
+**Target level:** Beginner–Intermediate  
+**Status:** PENDING
+
+### Learning objectives
+- Transfer files securely between hosts.
+- Copy directories recursively.
+- Select identity files and SSH ports.
+- Verify destination permissions and integrity.
+
+### Core commands
+
+- `scp`
+- `sftp`
+- `rsync` — recommended extension for more advanced transfer workflows.
+
+### Crucial flags
+- `-r` — recursively copy directories.
+- `-i KEYFILE` — select SSH identity file.
+- `-P PORT` — select the SCP SSH port.
+- `-p` — preserve modification times and modes where supported.
+
+### Common syntax
+
+```bash
+scp app.log ubuntu@SERVER_IP:/home/ubuntu/
+scp ubuntu@SERVER_IP:/var/log/app.log .
+scp -r project/ ubuntu@SERVER_IP:/home/ubuntu/
+scp -i ~/.ssh/id_ed25519 app.tar.gz ubuntu@SERVER_IP:/tmp/
+scp -P 2222 app.log ubuntu@SERVER_IP:/tmp/
+```
+
+### Common mistakes
+- Confusing `scp -P` with `ssh -p`.
+- Copying to a directory where the remote user has no write permission.
+- Accidentally transferring secrets.
+- Assuming successful transfer means the destination application has the correct ownership or configuration.
+
+---
+
+## Module 17 — Vim and Nano
+
+**Target level:** Beginner–Intermediate  
+**Status:** PENDING
+
+### A. Vim
+
+Core command:
+
+```bash
+vim app.conf
+```
+
+Essential modes and operations:
+- Normal mode.
+- Insert mode: `i`.
+- Append mode: `a`.
+- Command mode: `:`.
+- Save: `:w`.
+- Quit: `:q`.
+- Save and quit: `:wq`.
+- Force quit without saving: `:q!`.
+- Delete line: `dd`.
+- Copy line: `yy`.
+- Paste: `p`.
+- Undo: `u`.
+- Search: `/pattern`.
+- Repeat search: `n`.
+- Replace text: `:%s/old/new/g`.
+
+### B. Nano
+
+Core command:
+
+```bash
+nano app.conf
+```
+
+Essential shortcuts:
+- `Ctrl+O` — write/save.
+- `Enter` — confirm filename.
+- `Ctrl+X` — exit.
+- `Ctrl+W` — search.
+- `Ctrl+K` — cut line.
+- `Ctrl+U` — paste.
+- `Ctrl+\` — search and replace.
+
+### Common mistakes
+- Forgetting Vim starts in normal mode.
+- Quitting without saving changes.
+- Editing live production configuration without creating a backup.
+- Saving syntax errors and restarting a service before validating the configuration.
+
+---
+
+## Module 18 — Package Management
+
+**Target level:** Beginner–Intermediate  
+**Status:** PENDING
+
+### Learning objectives
+- Install and update packages.
+- Search package repositories.
+- Remove packages safely.
+- Inspect installed versions.
+- Understand package managers by distribution.
+
+### A. Debian and Ubuntu: APT
+
+Core commands:
+- `apt update`
+- `apt upgrade`
+- `apt install`
+- `apt remove`
+- `apt purge`
+- `apt autoremove`
+- `apt search`
+- `apt show`
+- `dpkg -l`
+- `dpkg -L`
+
+Common syntax:
+
+```bash
+sudo apt update
+sudo apt upgrade
+sudo apt install nginx
+sudo apt remove nginx
+sudo apt purge nginx
+sudo apt autoremove
+apt search nginx
+apt show nginx
+dpkg -l
+dpkg -L nginx
+```
+
+### B. Fedora, RHEL and related distributions
+
+Common commands:
+- `dnf`
+- `rpm`
+
+```bash
+sudo dnf check-update
+sudo dnf install nginx
+sudo dnf remove nginx
+dnf search nginx
+rpm -qa
+```
+
+### C. Alpine Linux
+
+```bash
+apk update
+apk add curl
+apk del curl
+apk info
+```
+
+### Common mistakes
+- Assuming every distribution uses APT.
+- Confusing refreshing repository metadata with installing updates.
+- Removing a package without checking dependencies.
+- Installing software from untrusted repositories.
+- Upgrading production systems without a rollback or maintenance plan.
+
+---
+
+## Module 19 — Archives, Compression and Backups
+
+**Target level:** Beginner–Intermediate  
+**Status:** PENDING
+
+### Learning objectives
+- Archive files and directories.
+- Compress and extract data.
+- Inspect archive contents before extraction.
+- Create and verify backups.
+- Understand archive versus compression.
+
+### Core commands
+- `tar`
+- `gzip`
+- `gunzip`
+- `zip`
+- `unzip`
+- `rsync`
+- `sha256sum`
+
+### Crucial flags
+- `tar -c` — create archive.
+- `tar -x` — extract archive.
+- `tar -t` — list contents.
+- `tar -z` — gzip compression.
+- `tar -v` — verbose.
+- `tar -f` — archive filename.
+- `tar -C DIR` — change directory before operating.
+- `rsync -a` — archive mode.
+- `rsync -v` — verbose.
+- `rsync --dry-run` — simulate changes.
+- `sha256sum` — calculate a SHA-256 checksum.
+
+### Common syntax
+
+```bash
+tar -czvf backup.tar.gz project/
+tar -tzf backup.tar.gz
+tar -xzvf backup.tar.gz
+tar -xzf backup.tar.gz -C /tmp/restore
+gzip app.log
+gunzip app.log.gz
+zip -r project.zip project/
+unzip -l project.zip
+sha256sum backup.tar.gz
+```
+
+### Common mistakes
+- Confusing creating an archive with compressing a single file.
+- Extracting untrusted archives into sensitive directories.
+- Overwriting existing files during extraction.
+- Assuming a successful backup command proves the backup can be restored.
+- Storing all backups on the same disk as the source data.
+
+---
+
+## Module 20 — Environment Variables and Configuration
+
+**Target level:** Intermediate  
+**Status:** EXTENSION
+
+### Learning objectives
+- Inspect environment variables.
+- Set temporary variables.
+- Export variables to child processes.
+- Understand PATH and application configuration.
+- Avoid exposing secrets.
+
+### Core commands
+
+- `env`
+- `printenv`
+- `export`
+- `unset`
+- `echo`
+- `printf`
+- `source`
+- `which`
+- `command -v`
+
+### Common syntax
+
+```bash
+env
+printenv PATH
+echo "$HOME"
+export APP_ENV=production
+unset APP_ENV
+command -v python3
+printf '%s\n' "$PATH"
+source ~/.bashrc
+```
+
+### Common mistakes
+- Assuming a shell variable automatically reaches child processes without `export`.
+- Printing production secrets in logs.
+- Assuming `.bashrc` is loaded by every non-interactive process or cron job.
+- Storing credentials directly in source code.
+- Confusing a variable's presence with the application's successful use of that variable.
+
+---
+
+## Module 21 — Bash Scripting and Automation
+
+**Target level:** Intermediate  
+**Status:** EXTENSION
+
+### Learning objectives
+- Write reusable shell scripts.
+- Use variables, arguments, conditionals, loops, and functions.
+- Check exit codes.
+- Handle errors and logs.
+- Automate backups, health checks, and housekeeping.
+
+### Core commands and syntax
+
+- Shebang: `#!/usr/bin/env bash`
+- Variables: `NAME=value`
+- Arguments: `$1`, `$2`, `$@`, `$#`
+- Exit status: `$?`
+- Conditions: `if`, `case`
+- Loops: `for`, `while`
+- Functions.
+- `exit`.
+- `set -euo pipefail` — common strict-mode settings; understand their behavior before using them.
+- `trap` — handle signals and cleanup.
+
+### Example health-check script
+
+```bash
+#!/usr/bin/env bash
+
+set -u
+
+URL="http://localhost:3000/health"
+
+if curl --fail --silent --show-error "$URL" >/dev/null; then
+    echo "Application is healthy"
+    exit 0
+else
+    echo "Application health check failed" >&2
+    exit 1
+fi
+```
+
+Run:
+
+```bash
+chmod +x health-check.sh
+./health-check.sh
+echo $?
+```
+
+### Common mistakes
+- Forgetting quoting around variables containing spaces.
+- Using `set -e` without understanding contexts where errors do not terminate the script as expected.
+- Ignoring command exit codes.
+- Hardcoding credentials.
+- Writing scripts without logs, validation, or safe failure behavior.
+- Running scripts as root when not necessary.
+
+---
+
+## Module 22 — Resource Monitoring and Performance
+
+**Target level:** Intermediate–Advanced  
+**Status:** EXTENSION
+
+### Learning objectives
+- Identify CPU, RAM, disk, and I/O bottlenecks.
+- Inspect system load and uptime.
+- Diagnose memory pressure.
+- Monitor disk I/O and resource usage.
+- Correlate performance with application logs.
+
+### Core commands
+
+- `uptime`
+- `free`
+- `top`
+- `htop`
+- `vmstat`
+- `iostat`
+- `sar`
+- `mpstat`
+- `df`
+- `du`
+- `ps`
+- `pidstat`
+
+### Common syntax
+
+```bash
+uptime
+free -h
+top
+vmstat 1
+iostat -xz 1
+df -h
+df -i
+ps aux --sort=-%cpu | head
+ps aux --sort=-%mem | head
+```
+
+Some tools, such as `iostat` and `sar`, may require installing `sysstat`.
+
+### Common mistakes
+- Treating high CPU usage alone as proof of a fault.
+- Confusing Linux load average with CPU utilization percentage.
+- Assuming free RAM must be high; Linux uses available memory for caching.
+- Looking at a single snapshot instead of observing trends.
+- Ignoring disk I/O and network bottlenecks.
+
+---
+
+## Module 23 — Linux Security and Hardening
+
+**Target level:** Intermediate–Advanced  
+**Status:** EXTENSION
+
+### Learning objectives
+- Apply least privilege.
+- Secure SSH.
+- Inspect permissions and ownership.
+- Understand firewall rules.
+- Inspect running services and listening ports.
+- Manage secrets and updates.
+
+### Core commands and tools
+
+- `sudo`
+- `chmod`
+- `chown`
+- `id`
+- `ss`
+- `systemctl`
+- `journalctl`
+- `ufw`
+- `firewall-cmd`
+- `getent`
+- `find`
+
+### Common syntax
+
+```bash
+id
+sudo ss -tulpn
+systemctl --failed
+sudo journalctl -p warning
+sudo ufw status
+sudo ufw allow 22/tcp
+sudo ufw allow 443/tcp
+sudo ufw status verbose
+```
+
+Firewall tools depend on the distribution and host configuration. Do not enable or change firewall rules on a remote server without ensuring access will be preserved.
+
+### Common mistakes
+- Opening every port to the internet.
+- Disabling a firewall to solve a connectivity issue.
+- Storing private keys or application secrets in source control.
+- Using overly permissive file modes.
+- Disabling SSH host-key verification.
+- Assuming a service is secure simply because it is not publicly exposed.
+
+---
+
+## Module 24 — Troubleshooting and Incident Response
+
+**Target level:** Advanced  
+**Status:** INTEGRATION / PRACTICE
+
+### Standard troubleshooting sequence
+
+```text
+1. Establish the symptom and scope.
+2. Check service status.
+3. Inspect logs and timestamps.
+4. Check processes and resource use.
+5. Check disk, memory, and inodes.
+6. Check network interfaces, routes, DNS, and ports.
+7. Identify the root cause.
+8. Apply the smallest safe fix.
+9. Verify recovery.
+10. Record the cause and prevention steps.
+```
+
+### Essential diagnostic commands
+
+```bash
+systemctl status myapp
+journalctl -u myapp -n 100
+journalctl -u myapp --since "30 minutes ago"
+ps aux
+top
+free -h
+df -h
+df -i
+sudo du -sh /var/*
+ip addr
+ip route
+ss -tulpn
+curl -v http://localhost:3000
+dig +short api.example.com
+```
+
+### Common mistakes
+- Restarting services before collecting evidence.
+- Making multiple unrelated changes during an incident.
+- Deleting logs or data to make an alert disappear.
+- Assuming the first visible error is the root cause.
+- Failing to verify recovery from the client's perspective.
+- Failing to document the incident and preventive actions.
+
+---
+
+## Module 25 — Interview Assessment and Linux Capstone
+
+**Target level:** Intermediate–Advanced  
+**Status:** PENDING
+
+### Assessment categories
+
+1. Linux fundamentals and filesystem hierarchy.
+2. Permissions and ownership.
+3. Users, groups, and `sudo`.
+4. Pipes and redirection.
+5. Searching and text processing.
+6. Processes and signals.
+7. systemd and services.
+8. Logs and cron.
+9. Networking and DNS.
+10. Disk usage and filesystems.
+11. SSH and SCP.
+12. Package management.
+13. Scripting and automation.
+14. Security and performance.
+15. Production incident troubleshooting.
+
+### Capstone objective
+
+Diagnose and recover a simulated Linux application server experiencing:
+- Application startup failure.
+- Incorrect file permissions.
+- A full disk or inode exhaustion.
+- A DNS or port-access problem.
+- A failed scheduled backup.
+- An application service repeatedly restarting.
+
+The learner must explain the evidence, command choices, root cause, corrective action, and validation—not simply execute commands.
+
+---
+
+# 3. Real-World Practical Scenarios & Incident Drills
+
+Use a disposable Ubuntu VM or test server. Do not deliberately break production systems.
+
+## Scenario 1 — SEV-1: Root Filesystem Is Full
+
+### Context and simulated state
+
+A Node.js application stops writing files and starts failing. Logs show `No space left on device`. The root filesystem is at 100%.
+
+### Target objective
+
+Identify the full filesystem and the directories consuming space. Recover safely.
+
+### Exact command solution
+
+```bash
+df -h
+df -i
+sudo du -xhd1 / 2>/dev/null | sort -h
+sudo du -xhd1 /var 2>/dev/null | sort -h
+sudo find /var/log -type f -size +100M -print
+```
+
+After identifying the cause, apply an approved cleanup or expand storage. If a known, rotated log is confirmed safe to remove, use the appropriate retention policy rather than deleting arbitrary files.
+
+### Key explanation
+
+- `df -h` reveals filesystem capacity.
+- `df -i` checks inode exhaustion.
+- `du -xhd1` summarizes directories without crossing onto other filesystems.
+- `find` identifies unusually large files.
+
+**Success criteria:** The learner identifies the responsible filesystem and data, performs an approved remediation, and verifies that space is available again.
+
+---
+
+## Scenario 2 — Application Service Fails to Start
+
+### Context and simulated state
+
+The `myapp` systemd service is inactive or failed following a deployment.
+
+### Target objective
+
+Identify the failure reason, correct the underlying issue, and verify recovery.
+
+### Exact command solution
+
+```bash
+sudo systemctl status myapp
+sudo journalctl -u myapp -n 100 --no-pager
+sudo journalctl -u myapp --since "30 minutes ago"
+```
+
+After correcting the actual problem:
+
+```bash
+sudo systemctl restart myapp
+sudo systemctl status myapp
+sudo journalctl -u myapp -n 50 --no-pager
+```
+
+### Key explanation
+
+Service status identifies the state and may expose a basic failure reason. Journal entries provide application startup errors, missing files, permission problems, and configuration failures.
+
+Do not restart repeatedly without investigating the underlying error.
+
+---
+
+## Scenario 3 — Port 3000 Is Not Reachable
+
+### Context and simulated state
+
+The Node.js application should listen on port 3000, but the browser cannot connect.
+
+### Target objective
+
+Determine whether the application is running and listening, and test its local response.
+
+### Exact command solution
+
+```bash
+ps aux | grep '[n]ode'
+sudo ss -tulpn | grep ':3000'
+curl -v --max-time 5 http://localhost:3000/
+```
+
+If the application is not listening, inspect the service:
+
+```bash
+sudo systemctl status myapp
+sudo journalctl -u myapp -n 100
+```
+
+### Key explanation
+
+- `ps` helps find a process.
+- `ss` identifies a listening socket.
+- `curl` tests HTTP communication.
+
+A process can exist without successfully listening on the expected port. A locally listening service may still be blocked from external access by firewall rules, cloud security groups, routing, or an interface binding such as `127.0.0.1`.
+
+---
+
+## Scenario 4 — DNS Resolves to the Wrong Server
+
+### Context and simulated state
+
+`api.example.com` should resolve to the newly deployed server, but users are reaching the old server.
+
+### Target objective
+
+Inspect DNS resolution and compare it with the expected address.
+
+### Exact command solution
+
+```bash
+dig +short api.example.com
+dig api.example.com A
+dig api.example.com AAAA
+nslookup api.example.com
+```
+
+Optionally query a specified DNS resolver:
+
+```bash
+dig @8.8.8.8 api.example.com A
+```
+
+### Key explanation
+
+These commands show DNS answers and can help distinguish incorrect DNS records from resolver-specific or caching differences. Compare the returned values with the intended configuration before making DNS changes.
+
+---
+
+## Scenario 5 — Permission Denied During Deployment
+
+### Context and simulated state
+
+A deployment script exists at `/opt/myapp/deploy.sh`, but the user receives `Permission denied`.
+
+### Target objective
+
+Determine whether the path permissions, ownership, or executable bit is causing the failure.
+
+### Exact command solution
+
+```bash
+ls -l /opt/myapp/deploy.sh
+namei -l /opt/myapp/deploy.sh
+id
+```
+
+After confirming the correct intended owner and permissions:
+
+```bash
+sudo chmod u+x /opt/myapp/deploy.sh
+```
+
+If ownership is incorrect, correct it explicitly:
+
+```bash
+sudo chown ubuntu:developers /opt/myapp/deploy.sh
+```
+
+### Key explanation
+
+The execute bit alone is not the only possible issue. The user also needs appropriate access to the parent directories, and the file must be compatible with the intended execution method.
+
+Do not use `chmod 777` as a general fix.
+
+---
+
+## Scenario 6 — High CPU Usage on a Production Server
+
+### Context and simulated state
+
+A server becomes slow, and monitoring indicates high CPU utilization.
+
+### Target objective
+
+Identify the highest CPU-consuming processes and determine which application requires investigation.
+
+### Exact command solution
+
+```bash
+uptime
+top
+ps aux --sort=-%cpu | head -n 10
+ps -eo pid,ppid,user,%cpu,%mem,cmd --sort=-%cpu | head
+```
+
+For the selected PID:
+
+```bash
+ps -p PID -o pid,ppid,user,%cpu,%mem,cmd
+```
+
+Replace `PID` with the actual process ID.
+
+### Key explanation
+
+These commands identify CPU-heavy processes and provide information for correlating resource use with application logs. High CPU alone does not establish whether the cause is a traffic spike, an inefficient query, an infinite loop, or another issue.
+
+---
+
+## Scenario 7 — Cron Backup Is Not Running
+
+### Context and simulated state
+
+A backup script runs successfully when executed manually but appears not to run at 2:00 AM.
+
+### Target objective
+
+Inspect the scheduled job, verify its environment and permissions, and capture output for diagnosis.
+
+### Exact command solution
+
+```bash
+crontab -l
+sudo systemctl status cron
+sudo journalctl -u cron --since today
+ls -l /home/ubuntu/backup.sh
+```
+
+Test the script as the intended user:
+
+```bash
+/home/ubuntu/backup.sh
+```
+
+Use absolute paths and redirect output in the scheduled entry:
+
+```cron
+0 2 * * * /home/ubuntu/backup.sh >> /home/ubuntu/backup.log 2>&1
+```
+
+### Key explanation
+
+Cron jobs run in a more limited environment than an interactive terminal. Missing environment variables, relative paths, permissions, and working-directory assumptions are common causes of failure.
+
+---
+
+## Scenario 8 — SSH Connection Fails
+
+### Context and simulated state
+
+An engineer cannot connect to an Ubuntu server using SSH.
+
+### Target objective
+
+Determine whether the issue is connectivity, port availability, credentials, or host-key verification.
+
+### Exact command solution
+
+On the client:
+
+```bash
+ssh -v ubuntu@SERVER_IP
+```
+
+On the server, through an available console or existing administrative session:
+
+```bash
+sudo systemctl status ssh
+sudo ss -tulpn | grep ':22'
+sudo journalctl -u ssh -n 100
+```
+
+### Key explanation
+
+Verbose SSH output helps locate the connection stage where the failure occurs. Server-side status and logs can reveal service or authentication problems.
+
+Also verify routing, firewall rules, cloud security groups, the configured SSH port, username, key permissions, and host-key verification.
+
+Do not disable host-key verification merely to bypass a warning.
+
+---
+
+## Scenario 9 — A Log File Is Growing Rapidly
+
+### Context and simulated state
+
+Application logs grow continuously, consuming disk space.
+
+### Target objective
+
+Identify the source, inspect recent errors, and determine the safe retention or rotation fix.
+
+### Exact command solution
+
+```bash
+df -h
+sudo du -sh /var/log/*
+sudo find /var/log -type f -size +100M -print
+sudo tail -n 100 /var/log/myapp.log
+sudo tail -f /var/log/myapp.log
+```
+
+If the application uses systemd logging:
+
+```bash
+sudo journalctl -u myapp -n 100
+```
+
+### Key explanation
+
+`du` identifies where space is being consumed, `find` identifies large files, and `tail` exposes recent log entries. The durable solution is usually appropriate log rotation, retention, and correction of repeated errors.
+
+Do not truncate or remove an active log without understanding how the application handles file descriptors and log rotation.
+
+---
+
+## Scenario 10 — A Disk Is Attached but Data Is Not Accessible
+
+### Context and simulated state
+
+A new storage volume has been attached to a test VM, but `/data` is unavailable.
+
+### Target objective
+
+Inspect the block device, determine whether it contains an existing filesystem, and safely mount it.
+
+### Exact command solution
+
+Start with inspection only:
+
+```bash
+lsblk
+lsblk -f
+sudo blkid
+findmnt
+df -h
+```
+
+If the device already contains the correct filesystem, and the device and mount point have been verified:
+
+```bash
+sudo mkdir -p /data
+sudo mount /dev/VERIFIED_PARTITION /data
+findmnt /data
+df -h /data
+```
+
+Replace `/dev/VERIFIED_PARTITION` with the actual verified partition.
+
+### Key explanation
+
+`lsblk` identifies disks and partitions, `lsblk -f` reveals filesystem information, and `findmnt` shows active mount points.
+
+Do not run `mkfs` on an unknown device. Formatting can destroy existing data. Persistent mounts through `/etc/fstab` are a separate step and must be validated before rebooting.
+
+---
+
+# 4. Trainer's Teaching Protocol
+
+Use the following sequence for every module.
+
+## Phase A — Conceptual understanding
+1. Explain what the command or feature is.
+2. Explain why it exists.
+3. Describe a real DevOps use case.
+4. Explain the underlying Linux concept.
+
+## Phase B — Command proficiency
+1. Teach basic syntax.
+2. Explain each important flag.
+3. Demonstrate with sample output.
+4. Compare similar commands.
+5. Show safe and unsafe examples.
+
+## Phase C — Practical application
+1. Give the learner a task without the answer.
+2. Ask them to select commands independently.
+3. Ask them to explain the output.
+4. Introduce a realistic failure.
+5. Require them to diagnose and fix it.
+
+## Phase D — Interview readiness
+Ask the learner to explain:
+- What the command does.
+- Why it is appropriate.
+- What the important flags mean.
+- What can go wrong.
+- How they would use it in production.
+- How they would verify the result.
+
+## Phase E — Assessment
+A module should be marked mastered only after the learner can:
+- Explain the concept without notes.
+- Execute common commands correctly.
+- Interpret real output.
+- Diagnose a related failure.
+- Explain risks and recovery steps.
+
+---
+
+# 5. Recommended Progress Tracker
+
+## Previously covered
+
+- [x] Filesystem fundamentals
+- [x] Permissions and `chmod`
+- [x] Users, groups, and `chown`
+- [x] `grep`
+- [x] `find`
+- [x] `awk`
+- [x] `sed`
+- [x] `head` and `tail`
+- [x] `systemctl` and services
+- [x] `journalctl`
+- [x] Cron and scheduled jobs
+- [x] Process management
+- [x] Core networking commands
+
+## Current module
+
+- [ ] Disk usage with `df`, `du`, and inode inspection — taught; practical verification pending
+- [ ] Disk and partition inspection with `lsblk` and `blkid`
+- [ ] Partitioning and filesystem concepts
+- [ ] Mounting and unmounting
+- [ ] Persistent mounts and `/etc/fstab`
+- [ ] Swap and storage expansion
+- [ ] Disk incident drills
+
+## Remaining core modules
+
+- [ ] SSH and secure remote access
+- [ ] SCP and remote file transfer
+- [ ] Vim
+- [ ] Nano
+- [ ] Package managers
+
+## Recommended extensions
+
+- [ ] Linux fundamentals and architecture
+- [ ] File and directory management
+- [ ] Pipes, redirection, and streams
+- [ ] Archives, compression, and backup
+- [ ] Environment variables and configuration
+- [ ] Bash scripting and automation
+- [ ] Resource monitoring and performance
+- [ ] Security and hardening
+- [ ] Production troubleshooting and incident response
+- [ ] Interview assessment and capstone
+
+---
+
+# 6. Final Training Outcome
+
+By the end of this curriculum, the learner should be able to:
+
+1. Navigate Linux confidently and manage files safely.
+2. Configure permissions, users, groups, and ownership.
+3. Search logs and process text using standard command-line tools.
+4. Manage processes, systemd services, logs, and scheduled jobs.
+5. Troubleshoot DNS, connectivity, listening ports, and HTTP failures.
+6. Inspect and resolve disk-capacity problems safely.
+7. Connect to remote servers and transfer files securely.
+8. Install and maintain software using the correct package manager.
+9. Automate repeatable administrative tasks with Bash.
+10. Diagnose common Linux production incidents using evidence rather than guesswork.
+
+**Recommended progression after Linux:** Git → Docker → CI/CD with Jenkins → AWS → Terraform → Kubernetes → Monitoring and Observability → Integrated production deployment project.
+
+**Core principle:** The objective is not to memorize commands. It is to understand the system, identify the failure, choose the correct diagnostic tool, apply the smallest safe fix, and verify recovery.

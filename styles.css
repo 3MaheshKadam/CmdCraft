@@ -1,0 +1,54 @@
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #090d16;
+}
+::-webkit-scrollbar-thumb {
+  background: #232c3d;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3b465c;
+}
+
+/* Terminal Scanline subtle effect */
+.terminal-screen {
+  background: radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.03) 0%, transparent 80%);
+}
+
+/* Animations */
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 15px rgba(16, 185, 129, 0.2); }
+  50% { box-shadow: 0 0 25px rgba(16, 185, 129, 0.45); }
+}
+
+.glow-active {
+  animation: pulseGlow 2s infinite ease-in-out;
+}
+
+/* Tree visualization item styles */
+.fs-item {
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.fs-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.fs-highlight {
+  background: rgba(16, 185, 129, 0.15) !important;
+  border-left: 2px solid #10b981;
+}
+
+/* Terminal line animations */
+.cmd-line-enter {
+  animation: fadeIn 0.18s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
