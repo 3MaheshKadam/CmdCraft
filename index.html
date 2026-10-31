@@ -6,67 +6,41 @@
   <title>CmdCraft // Interactive Terminal & Command Mastery Arena</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              50: '#ecfdf5',
-              100: '#d1fae5',
-              500: '#10b981',
-              600: '#059669',
-              700: '#047857',
-              900: '#064e3b',
-            },
-            dark: {
-              bg: '#0d1117',
-              card: '#161b22',
-              border: '#30363d',
-              accent: '#21262d',
-            }
-          },
-          fontFamily: {
-            mono: ['"Fira Code"', 'JetBrains Mono', 'Menlo', 'monospace'],
-            sans: ['"Inter"', 'system-ui', 'sans-serif'],
-          }
-        }
-      }
-    }
-  </script>
+  <script src="theme.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&display=swap">
   <link rel="stylesheet" href="styles.css">
 </head>
-<body class="bg-[#0b0f19] text-gray-200 font-sans min-h-screen flex flex-col selection:bg-emerald-500 selection:text-black">
+<body class="bg-surface-0 text-neutral-200 font-sans min-h-screen flex flex-col selection:bg-emerald-500 selection:text-black">
 
   <!-- Top Navbar -->
-  <header class="border-b border-gray-800 bg-[#111827]/80 relative z-50 px-4 py-1.5">
+  <header class="border-b border-neutral-800 bg-surface-1/80 relative z-50 px-4 py-1.5">
     <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
 
       <!-- Brand Logo & Env Selector -->
       <div class="flex items-center space-x-3">
-        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-600 to-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
           <i class="fa-solid fa-terminal text-lg"></i>
         </div>
         <div>
           <div class="flex items-center space-x-2">
-            <h1 class="font-extrabold text-xl tracking-tight bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">CmdCraft</h1>
+            <h1 class="font-extrabold text-xl tracking-tight bg-gradient-to-r from-emerald-400 via-emerald-300 to-emerald-400 bg-clip-text text-transparent">CmdCraft</h1>
             <span class="text-xs font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">v1.0</span>
           </div>
         </div>
 
         <!-- Environments Navigation -->
-        <div class="ml-6 hidden 2xl:flex items-center space-x-1 p-1 bg-gray-900/90 border border-gray-800 rounded-lg text-xs font-medium">
+        <div class="ml-6 hidden 2xl:flex items-center space-x-1 p-1 bg-neutral-900/90 border border-neutral-800 rounded-lg text-xs font-medium">
           <button id="env-linux" class="px-3 py-1.5 rounded-md bg-emerald-500 text-black font-semibold flex items-center space-x-1.5 shadow-sm transition">
             <i class="fa-brands fa-linux text-sm"></i>
             <span>Linux Terminal</span>
           </button>
-          <button id="env-sql" class="px-3 py-1.5 rounded-md text-gray-400 hover:text-gray-200 flex items-center space-x-1.5 transition opacity-60 hover:opacity-100">
+          <button id="env-sql" class="px-3 py-1.5 rounded-md text-neutral-400 hover:text-neutral-200 flex items-center space-x-1.5 transition opacity-60 hover:opacity-100">
             <i class="fa-solid fa-database text-sm"></i>
-            <span>SQL Studio <span class="text-[10px] bg-purple-900/60 text-purple-300 px-1.5 py-0.2 rounded border border-purple-500/30">Next</span></span>
+            <span>SQL Studio <span class="text-[10px] bg-neutral-900/60 text-neutral-300 px-1.5 py-0.2 rounded border border-neutral-500/30">Next</span></span>
           </button>
-          <button id="env-git" class="px-3 py-1.5 rounded-md text-gray-400 hover:text-gray-200 flex items-center space-x-1.5 transition opacity-60 hover:opacity-100">
+          <button id="env-git" class="px-3 py-1.5 rounded-md text-neutral-400 hover:text-neutral-200 flex items-center space-x-1.5 transition opacity-60 hover:opacity-100">
             <i class="fa-solid fa-code-branch text-sm"></i>
             <span>Git & DevOps</span>
           </button>
@@ -83,33 +57,38 @@
         </div>
 
         <!-- XP & Rank -->
-        <div class="flex items-center space-x-2 bg-gray-900/80 border border-gray-800 px-3 py-1 rounded-full">
+        <div class="flex items-center space-x-2 bg-neutral-900/80 border border-neutral-800 px-3 py-1 rounded-full">
           <i class="fa-solid fa-trophy text-emerald-400 text-xs"></i>
           <div class="text-xs">
-            <span id="stat-rank" class="font-bold text-gray-200">Terminal Novice</span>
-            <span class="text-gray-500 font-mono ml-1">(<span id="stat-xp" class="text-emerald-400 font-bold">0</span> XP)</span>
+            <span id="stat-rank" class="font-bold text-neutral-200">Terminal Novice</span>
+            <span class="text-neutral-500 font-mono ml-1">(<span id="stat-xp" class="text-emerald-400 font-bold">0</span> XP)</span>
           </div>
         </div>
 
         <!-- Google Sign-in (shown only when Firebase is configured in cloud-config.js) -->
-        <button id="btn-auth" class="hidden h-8 px-3 rounded-lg bg-gray-800/80 hover:bg-gray-700 text-gray-300 flex items-center space-x-1.5 transition text-xs border border-gray-700" title="Sign in with Google to save progress across devices">
+        <button id="btn-auth" class="hidden h-8 px-3 rounded-lg bg-neutral-800/80 hover:bg-neutral-700 text-neutral-300 flex items-center space-x-1.5 transition text-xs border border-neutral-700" title="Sign in with Google to save progress across devices">
           <i class="fa-brands fa-google text-emerald-400"></i>
           <span id="btn-auth-label">Sign in</span>
         </button>
 
         <!-- Activity log (shown when signed in) -->
-        <a id="btn-activity" href="activity.html" target="_blank" rel="noopener" class="hidden h-8 px-3 rounded-lg bg-gray-800/80 hover:bg-gray-700 text-gray-300 flex items-center space-x-1.5 transition text-xs border border-gray-700" title="View your activity log">
-          <i class="fa-solid fa-chart-line text-cyan-400"></i>
+        <a id="btn-activity" href="activity.html" target="_blank" rel="noopener" class="hidden h-8 px-3 rounded-lg bg-neutral-800/80 hover:bg-neutral-700 text-neutral-300 flex items-center space-x-1.5 transition text-xs border border-neutral-700" title="View your activity log">
+          <i class="fa-solid fa-chart-line text-emerald-400"></i>
           <span>Activity</span>
         </a>
 
+        <!-- Theme: cycles Auto (follows system) -> Light -> Dark -->
+        <button id="btn-theme" class="w-8 h-8 rounded-lg bg-neutral-800/80 hover:bg-neutral-700 text-neutral-300 flex items-center justify-center transition text-xs border border-neutral-700" title="Theme">
+          <i class="fa-solid fa-circle-half-stroke"></i>
+        </button>
+
         <!-- Audio Toggle -->
-        <button id="sound-toggle" class="w-8 h-8 rounded-lg bg-gray-800/80 hover:bg-gray-700 text-gray-300 flex items-center justify-center transition text-xs border border-gray-700" title="Toggle Sound FX">
+        <button id="sound-toggle" class="w-8 h-8 rounded-lg bg-neutral-800/80 hover:bg-neutral-700 text-neutral-300 flex items-center justify-center transition text-xs border border-neutral-700" title="Toggle Sound FX">
           <i class="fa-solid fa-volume-high" id="sound-icon"></i>
         </button>
 
         <!-- Reset Session / Restart -->
-        <button id="btn-reset-progress" class="w-8 h-8 rounded-lg bg-gray-800/80 hover:bg-red-500/20 hover:text-red-400 text-gray-400 flex items-center justify-center transition text-xs border border-gray-700" title="Reset All Saved Progress">
+        <button id="btn-reset-progress" class="w-8 h-8 rounded-lg bg-neutral-800/80 hover:bg-red-500/20 hover:text-red-400 text-neutral-400 flex items-center justify-center transition text-xs border border-neutral-700" title="Reset All Saved Progress">
           <i class="fa-solid fa-rotate-left"></i>
         </button>
       </div>
@@ -118,16 +97,16 @@
   </header>
 
   <!-- Sub-bar: Mode Switcher & Topic Selector -->
-  <div class="border-b border-gray-800 bg-[#0e1422] px-4 py-1.5">
+  <div class="border-b border-neutral-800 bg-surface-2 px-4 py-1.5">
     <div class="max-w-7xl mx-auto flex flex-wrap lg:flex-nowrap items-center justify-between gap-2">
       
       <!-- 2 Modes: Topic-wise vs Entire Syllabus -->
-      <div class="flex items-center bg-gray-900 border border-gray-800 p-0.5 rounded-lg shrink-0">
+      <div class="flex items-center bg-neutral-900 border border-neutral-800 p-0.5 rounded-lg shrink-0">
         <button id="mode-topic" class="px-4 py-1.5 text-xs font-semibold rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center space-x-2 transition">
           <i class="fa-solid fa-layer-group"></i>
           <span>1. Topic-Wise Drills</span>
         </button>
-        <button id="mode-syllabus" class="px-4 py-1.5 text-xs font-semibold rounded-md text-gray-400 hover:text-gray-200 flex items-center space-x-2 transition">
+        <button id="mode-syllabus" class="px-4 py-1.5 text-xs font-semibold rounded-md text-neutral-400 hover:text-neutral-200 flex items-center space-x-2 transition">
           <i class="fa-solid fa-skull-crossbones"></i>
           <span>2. Full Syllabus / Incident Sim</span>
         </button>
@@ -140,15 +119,15 @@
 
       <!-- Quick Action / Navigation -->
       <div class="flex items-center space-x-2 shrink-0">
-        <button id="btn-hint" class="px-3 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-medium flex items-center space-x-1.5 transition">
+        <button id="btn-hint" class="px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-medium flex items-center space-x-1.5 transition">
           <i class="fa-regular fa-lightbulb"></i>
           <span>Hint</span>
         </button>
-        <button id="btn-prev" class="px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 text-xs font-medium flex items-center space-x-1.5 transition" title="Go to previous scenario">
+        <button id="btn-prev" class="px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border border-neutral-700 text-xs font-medium flex items-center space-x-1.5 transition" title="Go to previous scenario">
           <i class="fa-solid fa-backward-step text-[10px]"></i>
           <span>Prev</span>
         </button>
-        <button id="btn-skip" class="px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 text-xs font-medium flex items-center space-x-1.5 transition" title="Skip to next scenario">
+        <button id="btn-skip" class="px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border border-neutral-700 text-xs font-medium flex items-center space-x-1.5 transition" title="Skip to next scenario">
           <span>Skip</span>
           <i class="fa-solid fa-forward-step text-[10px]"></i>
         </button>
@@ -164,7 +143,7 @@
     <div class="lg:col-span-7 flex flex-col space-y-4">
       
       <!-- Scenario Brief Card -->
-      <div class="bg-[#131b2a] border border-gray-800 rounded-xl p-5 shadow-xl relative overflow-hidden">
+      <div class="bg-surface-1 border border-neutral-800 rounded-xl p-5 shadow-xl relative overflow-hidden">
         <!-- Accent corner glow -->
         <div class="absolute -top-12 -right-12 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
 
@@ -173,10 +152,10 @@
             <span id="scenario-topic-badge" class="px-2.5 py-1 rounded-md text-xs font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               TOPIC: FILE NAVIGATION
             </span>
-            <span id="scenario-difficulty" class="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+            <span id="scenario-difficulty" class="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-500/10 text-slate-400 border border-slate-500/20">
               BEGINNER
             </span>
-            <span id="scenario-id" class="text-xs font-mono text-gray-500">#LNX-01</span>
+            <span id="scenario-id" class="text-xs font-mono text-neutral-500">#LNX-01</span>
           </div>
 
           <div class="flex items-center space-x-1 text-xs text-emerald-400 font-mono font-bold">
@@ -186,22 +165,22 @@
         </div>
 
         <!-- Mission Title & Description -->
-        <h2 id="scenario-title" class="text-lg font-bold text-white mb-2 flex items-center gap-2">
+        <h2 id="scenario-title" class="text-lg font-bold text-neutral-50 mb-2 flex items-center gap-2">
           <i class="fa-solid fa-compass text-emerald-400"></i>
           <span>Where In The Filesystem Am I?</span>
         </h2>
-        <p id="scenario-desc" class="text-sm text-gray-300 leading-relaxed mb-4">
+        <p id="scenario-desc" class="text-sm text-neutral-300 leading-relaxed mb-4">
           You just SSH-ed into a production server after an unexpected alert. Before running any commands, identify your exact current absolute working directory.
         </p>
 
         <!-- Objective Box -->
-        <div class="bg-[#0b101b] border border-emerald-500/20 rounded-lg p-3 text-xs flex items-center justify-between">
+        <div class="bg-surface-2 border border-emerald-500/20 rounded-lg p-3 text-xs flex items-center justify-between">
           <div class="flex items-center space-x-2.5">
             <div class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">
               🎯
             </div>
             <div>
-              <div class="text-gray-400 text-[10px] uppercase font-mono tracking-wider">Mission Objective</div>
+              <div class="text-neutral-400 text-[10px] uppercase font-mono tracking-wider">Mission Objective</div>
               <div id="scenario-objective" class="text-emerald-300 font-medium font-mono text-xs">Print the present working directory.</div>
             </div>
           </div>
@@ -212,47 +191,54 @@
       </div>
 
       <!-- Interactive Web Terminal Simulator -->
-      <div class="bg-[#090d16] border border-gray-800 rounded-xl overflow-hidden shadow-2xl flex-1 flex flex-col font-mono min-h-[360px]">
+      <div id="terminal-panel" class="bg-surface-0 border border-neutral-800 rounded-xl overflow-hidden shadow-2xl flex-1 flex flex-col font-mono min-h-[360px]">
         
         <!-- Terminal Header Bar -->
-        <div class="bg-[#121824] px-4 py-2 border-b border-gray-800 flex items-center justify-between text-xs">
+        <div class="bg-surface-1 px-4 py-2 border-b border-neutral-800 flex items-center justify-between text-xs">
           <div class="flex items-center space-x-2">
             <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
             <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
             <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
-            <span class="ml-2 text-gray-400 font-semibold flex items-center gap-1.5">
+            <span class="ml-2 text-neutral-400 font-semibold flex items-center gap-1.5">
               <i class="fa-solid fa-server text-[10px] text-emerald-400"></i>
               <span id="term-host">student@sys-sandbox: ~</span>
             </span>
           </div>
 
-          <div class="flex items-center space-x-3 text-gray-400 text-[11px]">
-            <span class="text-gray-500">History: <kbd class="px-1 py-0.5 bg-gray-800 rounded text-gray-300 border border-gray-700">↑</kbd> <kbd class="px-1 py-0.5 bg-gray-800 rounded text-gray-300 border border-gray-700">↓</kbd></span>
-            <button id="btn-clear-term" class="hover:text-gray-200 transition" title="Clear Terminal (Ctrl+L)">
+          <div class="flex items-center space-x-3 text-neutral-400 text-[11px]">
+            <span class="text-neutral-500">History: <kbd class="px-1 py-0.5 bg-neutral-800 rounded text-neutral-300 border border-neutral-700">↑</kbd> <kbd class="px-1 py-0.5 bg-neutral-800 rounded text-neutral-300 border border-neutral-700">↓</kbd></span>
+            <button id="btn-fullscreen-term" class="hover:text-neutral-200 transition" title="Full screen (Esc to exit)">
+              <i id="icon-fullscreen-term" class="fa-solid fa-expand"></i>
+            </button>
+            <button id="btn-clear-term" class="hover:text-neutral-200 transition" title="Clear Terminal (Ctrl+L)">
               <i class="fa-solid fa-eraser"></i>
             </button>
           </div>
         </div>
 
         <!-- Terminal Output Area -->
-        <div id="terminal-output" class="p-4 overflow-y-auto flex-1 space-y-2 text-xs md:text-sm text-gray-200 cursor-text" onclick="document.getElementById('terminal-input').focus()">
-          <div class="text-gray-500 italic">
-            CmdCraft Linux Interactive Sandbox initialized. Click anywhere in this terminal to type and hit <kbd class="px-1 py-0.5 bg-gray-800 rounded text-gray-300 text-[11px]">Enter</kbd>.
+        <div id="terminal-output" class="p-4 overflow-y-auto flex-1 space-y-2 text-xs md:text-sm text-neutral-200 cursor-text" onclick="document.getElementById('terminal-input').focus()">
+          <div class="text-neutral-500 italic">
+            CmdCraft Linux Interactive Sandbox initialized. Click anywhere in this terminal to type and hit <kbd class="px-1 py-0.5 bg-neutral-800 rounded text-neutral-300 text-[11px]">Enter</kbd>.
           </div>
         </div>
 
         <!-- Terminal Input Prompt -->
-        <form id="terminal-form" class="bg-[#0e1320] border-t border-gray-800 p-3 flex items-center space-x-2 focus-within:border-emerald-500/60 focus-within:bg-[#111827] focus-within:ring-1 focus-within:ring-emerald-500/40 transition cursor-text" onclick="document.getElementById('terminal-input').focus()">
+        <form id="terminal-form" class="bg-surface-2 border-t border-neutral-800 p-3 flex items-center space-x-2 focus-within:border-emerald-500/60 focus-within:bg-surface-1 focus-within:ring-1 focus-within:ring-emerald-500/40 transition cursor-text" onclick="document.getElementById('terminal-input').focus()">
           <span class="text-emerald-400 font-bold select-none text-xs md:text-sm" id="prompt-label">student@sys:~$</span>
           <input 
             type="text" 
             id="terminal-input" 
-            class="flex-1 bg-transparent border-none outline-none text-white font-mono text-xs md:text-sm focus:ring-0 placeholder-gray-500 caret-emerald-400" 
+            class="flex-1 bg-transparent border-none outline-none text-neutral-50 font-mono text-xs md:text-sm focus:ring-0 placeholder-neutral-500 caret-emerald-400" 
             placeholder="Type your command here (e.g. whoami, pwd, ls -la)..."
             autocomplete="off"
             spellcheck="false"
             autofocus
           />
+          <button type="button" id="btn-term-next" class="hidden px-3 py-1 bg-transparent border border-emerald-500/60 text-emerald-400 hover:bg-emerald-500/10 rounded text-xs font-semibold flex items-center space-x-1 transition" title="Next scenario (Enter on an empty prompt also works)">
+            <span>Next</span>
+            <i class="fa-solid fa-arrow-right text-[10px]"></i>
+          </button>
           <button type="submit" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold flex items-center space-x-1 transition shadow-sm">
             <span>Execute</span>
             <i class="fa-solid fa-arrow-turn-down text-[10px]"></i>
@@ -267,37 +253,36 @@
     <div class="lg:col-span-5 flex flex-col space-y-4">
 
       <!-- Visual State Card (Dynamic Live Filesystem Tree) -->
-      <div class="bg-[#131b2a] border border-gray-800 rounded-xl p-4 shadow-xl flex flex-col">
-        <div class="flex items-center justify-between pb-3 border-b border-gray-800">
+      <div class="bg-surface-1 border border-neutral-800 rounded-xl p-4 shadow-xl flex flex-col">
+        <div class="flex items-center justify-between pb-3 border-b border-neutral-800">
           <div class="flex items-center space-x-2">
-            <div class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></div>
-            <h3 class="font-bold text-sm text-white flex items-center gap-2">
-              <i class="fa-solid fa-sitemap text-cyan-400"></i>
+            <h3 class="font-bold text-sm text-neutral-50 flex items-center gap-2">
+              <i class="fa-solid fa-sitemap text-emerald-400"></i>
               <span>Live Filesystem Visualizer</span>
             </h3>
           </div>
-          <span class="text-[11px] font-mono text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
+          <span class="text-[11px] font-mono text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
             Real-time State
           </span>
         </div>
 
-        <p class="text-xs text-gray-400 mt-2 mb-3">
+        <p class="text-xs text-neutral-400 mt-2 mb-3">
           Watch folders, permissions (<span class="font-mono text-emerald-400">rwx</span>), and files mutate dynamically as you issue commands.
         </p>
 
         <!-- Filesystem Interactive Tree Container -->
-        <div id="visual-fs-container" class="bg-[#0a0e17] border border-gray-800 rounded-lg p-3 font-mono text-xs overflow-y-auto max-h-[300px] scrollbar-thin">
+        <div id="visual-fs-container" class="bg-surface-0 border border-neutral-800 rounded-lg p-3 font-mono text-xs overflow-y-auto max-h-[300px] scrollbar-thin">
           <!-- Dynamically populated tree -->
         </div>
 
         <!-- Legend / Permissions explainer -->
-        <div class="mt-3 grid grid-cols-3 gap-2 text-[10px] font-mono text-gray-400 border-t border-gray-800/80 pt-2.5">
+        <div class="mt-3 grid grid-cols-3 gap-2 text-[10px] font-mono text-neutral-400 border-t border-neutral-800/80 pt-2.5">
           <div class="flex items-center space-x-1.5">
             <span class="w-2 h-2 rounded bg-amber-400"></span>
             <span>Folder</span>
           </div>
           <div class="flex items-center space-x-1.5">
-            <span class="w-2 h-2 rounded bg-blue-400"></span>
+            <span class="w-2 h-2 rounded bg-slate-400"></span>
             <span>Regular File</span>
           </div>
           <div class="flex items-center space-x-1.5">
@@ -308,22 +293,22 @@
       </div>
 
       <!-- Command Breakdown & Learning Feedback Card -->
-      <div class="bg-[#131b2a] border border-gray-800 rounded-xl p-4 shadow-xl flex-1 flex flex-col">
-        <div class="flex items-center justify-between pb-2 border-b border-gray-800">
-          <h3 class="font-bold text-sm text-white flex items-center gap-2">
-            <i class="fa-solid fa-graduation-cap text-indigo-400"></i>
+      <div class="bg-surface-1 border border-neutral-800 rounded-xl p-4 shadow-xl flex-1 flex flex-col">
+        <div class="flex items-center justify-between pb-2 border-b border-neutral-800">
+          <h3 class="font-bold text-sm text-neutral-50 flex items-center gap-2">
+            <i class="fa-solid fa-graduation-cap text-emerald-400"></i>
             <span>Syntax Breakdown & Knowledge Hub</span>
           </h3>
-          <span id="eval-status-pill" class="text-[11px] font-mono px-2 py-0.5 rounded bg-gray-800 text-gray-400">
+          <span id="eval-status-pill" class="text-[11px] font-mono px-2 py-0.5 rounded bg-neutral-800 text-neutral-400">
             Awaiting input
           </span>
         </div>
 
         <!-- Explanations & Deep Dive Content -->
         <div id="explanation-container" class="mt-3 flex-1 overflow-y-auto space-y-3 text-xs leading-relaxed">
-          <div class="p-3 rounded-lg bg-gray-900/60 border border-gray-800 text-gray-400">
-            <p class="font-medium text-gray-300 mb-1">💡 How this challenge works:</p>
-            <ul class="list-disc list-inside space-y-1 text-gray-400">
+          <div class="p-3 rounded-lg bg-neutral-900/60 border border-neutral-800 text-neutral-400">
+            <p class="font-medium text-neutral-300 mb-1">💡 How this challenge works:</p>
+            <ul class="list-disc list-inside space-y-1 text-neutral-400">
               <li>Read the scenario brief on the left.</li>
               <li>Input the correct Linux command in the terminal.</li>
               <li>CmdCraft accepts exact commands, aliases, and common flag variations (e.g. <code class="text-emerald-400 font-mono">ls -la</code> or <code class="text-emerald-400 font-mono">ls -al</code>).</li>
@@ -333,9 +318,9 @@
         </div>
 
         <!-- Next Challenge / Action Button -->
-        <div class="mt-4 pt-3 border-t border-gray-800 flex items-center justify-between">
-          <span class="text-xs text-gray-500 font-mono" id="scenario-counter">Scenario 1 / 8</span>
-          <button id="btn-next-scenario" class="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-bold rounded-lg text-xs flex items-center space-x-2 transition shadow-lg shadow-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+        <div class="mt-4 pt-3 border-t border-neutral-800 flex items-center justify-between">
+          <span class="text-xs text-neutral-500 font-mono" id="scenario-counter">Scenario 1 / 8</span>
+          <button id="btn-next-scenario" class="px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-500 hover:from-emerald-400 hover:to-emerald-400 text-black font-bold rounded-lg text-xs flex items-center space-x-2 transition shadow-lg shadow-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
             <span>Next Scenario</span>
             <i class="fa-solid fa-arrow-right"></i>
           </button>
@@ -349,14 +334,14 @@
 
   <!-- Modal: Completion / Level Up -->
   <div id="modal-congrats" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-[#161f30] border border-emerald-500/40 rounded-2xl p-6 max-w-md w-full shadow-2xl text-center relative overflow-hidden">
-      <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 to-cyan-400 text-black mx-auto flex items-center justify-center text-3xl font-extrabold mb-4 shadow-lg shadow-emerald-500/30">
+    <div class="bg-surface-1 border border-emerald-500/40 rounded-2xl p-6 max-w-md w-full shadow-2xl text-center relative overflow-hidden">
+      <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 to-emerald-400 text-black mx-auto flex items-center justify-center text-3xl font-extrabold mb-4 shadow-lg shadow-emerald-500/30">
         🏆
       </div>
-      <h3 class="text-xl font-extrabold text-white mb-1">Scenario Solved!</h3>
+      <h3 class="text-xl font-extrabold text-neutral-50 mb-1">Scenario Solved!</h3>
       <p class="text-xs text-emerald-400 font-mono mb-4">+<span id="modal-xp-earned">50</span> XP Earned • Streak Maintained!</p>
       
-      <div id="modal-breakdown" class="text-left bg-gray-900/90 border border-gray-800 rounded-lg p-3 text-xs font-mono text-gray-300 mb-5 space-y-1">
+      <div id="modal-breakdown" class="text-left bg-neutral-900/90 border border-neutral-800 rounded-lg p-3 text-xs font-mono text-neutral-300 mb-5 space-y-1">
         <!-- Breakdown text -->
       </div>
 
@@ -369,7 +354,9 @@
   <!-- Scripts -->
   <script src="cloud-config.js"></script>
   <script src="cloud.js"></script>
+  <script src="shell.js"></script>
   <script src="scenarios.js"></script>
+  <script src="goals.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

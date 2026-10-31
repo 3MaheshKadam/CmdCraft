@@ -4,14 +4,14 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #090d16;
+  background: var(--sb-track);
 }
 ::-webkit-scrollbar-thumb {
-  background: #232c3d;
+  background: var(--sb-thumb);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3b465c;
+  background: var(--sb-thumb-hover);
 }
 
 /* Terminal Scanline subtle effect */
@@ -35,11 +35,33 @@
   user-select: none;
 }
 .fs-item:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgb(var(--hover) / 0.05);
 }
 .fs-highlight {
-  background: rgba(16, 185, 129, 0.15) !important;
-  border-left: 2px solid #10b981;
+  background: transparent;
+}
+
+/* Terminal full screen (CSS fallback when the Fullscreen API is unavailable) */
+#terminal-panel.term-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  border-radius: 0;
+  border: 0;
+  min-height: 100vh;
+}
+#terminal-panel:fullscreen {
+  border-radius: 0;
+  border: 0;
+}
+
+/* Node created or modified by the last command */
+.fs-flash {
+  animation: fsFlash 1.4s ease-out;
+}
+@keyframes fsFlash {
+  0%   { background: rgba(250, 204, 21, 0.45); box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.7) inset; }
+  100% { background: transparent; box-shadow: none; }
 }
 
 /* Terminal line animations */

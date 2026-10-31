@@ -209,11 +209,11 @@ class CmdCraftApp {
   updateModeUI() {
     if (this.currentMode === "topic") {
       this.dom.modeTopicBtn.className = "px-4 py-1.5 text-xs font-semibold rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center space-x-2 transition";
-      this.dom.modeSyllabusBtn.className = "px-4 py-1.5 text-xs font-semibold rounded-md text-gray-400 hover:text-gray-200 flex items-center space-x-2 transition";
+      this.dom.modeSyllabusBtn.className = "px-4 py-1.5 text-xs font-semibold rounded-md text-neutral-400 hover:text-neutral-200 flex items-center space-x-2 transition";
       this.dom.topicContainer.classList.remove("opacity-30", "pointer-events-none");
     } else {
       this.dom.modeSyllabusBtn.className = "px-4 py-1.5 text-xs font-semibold rounded-md bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center space-x-2 transition";
-      this.dom.modeTopicBtn.className = "px-4 py-1.5 text-xs font-semibold rounded-md text-gray-400 hover:text-gray-200 flex items-center space-x-2 transition";
+      this.dom.modeTopicBtn.className = "px-4 py-1.5 text-xs font-semibold rounded-md text-neutral-400 hover:text-neutral-200 flex items-center space-x-2 transition";
       this.dom.topicContainer.classList.add("opacity-30", "pointer-events-none");
     }
   }
@@ -251,7 +251,7 @@ class CmdCraftApp {
     // Audio toggle
     this.dom.soundToggle.addEventListener("click", () => {
       this.sound.enabled = !this.sound.enabled;
-      this.dom.soundIcon.className = this.sound.enabled ? "fa-solid fa-volume-high text-emerald-400" : "fa-solid fa-volume-xmark text-gray-500";
+      this.dom.soundIcon.className = this.sound.enabled ? "fa-solid fa-volume-high text-emerald-400" : "fa-solid fa-volume-xmark text-neutral-500";
     });
 
     // Terminal form submit
@@ -306,6 +306,39 @@ class CmdCraftApp {
 
     // Clear terminal button
     this.dom.btnClearTerm.addEventListener("click", () => this.clearTerminal());
+
+    const termNext = document.getElementById("btn-term-next");
+    if (termNext) termNext.addEventListener("click", () => this.advanceScenario(true));
+
+    // Terminal full screen (Fullscreen API, with a CSS overlay fallback)
+    const panel = document.getElementById("terminal-panel");
+    const fsBtn = document.getElementById("btn-fullscreen-term");
+    const fsIcon = document.getElementById("icon-fullscreen-term");
+    if (panel && fsBtn) {
+      const isFull = () => document.fullscreenElement === panel || panel.classList.contains("term-fullscreen");
+      const syncIcon = () => {
+        fsIcon.className = isFull() ? "fa-solid fa-compress" : "fa-solid fa-expand";
+        this.dom.termInput.focus();
+      };
+      const exitFull = () => {
+        if (document.fullscreenElement) document.exitFullscreen();
+        panel.classList.remove("term-fullscreen");
+        syncIcon();
+      };
+      fsBtn.addEventListener("click", async () => {
+        if (isFull()) { exitFull(); return; }
+        try {
+          await panel.requestFullscreen();
+        } catch (e) {
+          panel.classList.add("term-fullscreen");
+        }
+        syncIcon();
+      });
+      document.addEventListener("fullscreenchange", syncIcon);
+      window.addEventListener("keydown", e => {
+        if (e.key === "Escape" && panel.classList.contains("term-fullscreen")) exitFull();
+      });
+    }
 
     // Hint button
     this.dom.btnHint.addEventListener("click", () => {
@@ -378,14 +411,14 @@ class CmdCraftApp {
       btn.className = `px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition flex items-center space-x-1.5 ${
         this.selectedTopic === t.id && this.currentMode === "topic"
           ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
-          : "bg-gray-800/60 hover:bg-gray-800 text-gray-400 border border-gray-700/60"
+          : "bg-neutral-800/60 hover:bg-neutral-800 text-neutral-400 border border-neutral-700/60"
       }`;
 
       let badgeHtml = "";
       if (isAllSolved) {
         badgeHtml = `<span class="text-[9px] bg-emerald-500/30 text-emerald-300 px-1 py-0.2 rounded font-bold">✔</span>`;
       } else if (solvedInTopic > 0) {
-        badgeHtml = `<span class="text-[9px] bg-gray-700/70 text-gray-300 px-1 py-0.2 rounded">${solvedInTopic}/${topicScenarios.length}</span>`;
+        badgeHtml = `<span class="text-[9px] bg-neutral-700/70 text-neutral-300 px-1 py-0.2 rounded">${solvedInTopic}/${topicScenarios.length}</span>`;
       }
 
       btn.innerHTML = `<i class="fa-solid ${t.icon} text-[10px]"></i><span>${t.name}</span>${badgeHtml}`;
@@ -445,6 +478,9 @@ class CmdCraftApp {
     // Save active session state so browser reloads resume right here!
     this.saveSessionState();
 
+    // Every scenario starts with a clean terminal
+    this.dom.termOutput.innerHTML = "";
+
     // Badges & Meta
     const topicObj = LINUX_TOPICS.find(t => t.id === this.currentScenario.topic);
     this.dom.topicBadge.textContent = this.currentMode === "topic" 
@@ -475,29 +511,55 @@ class CmdCraftApp {
     // Check if this scenario was already solved previously
     const wasAlreadySolved = this.completedScenarios.includes(this.currentScenario.id);
     this.isSolved = wasAlreadySolved;
+    this.initShell();
 
     if (wasAlreadySolved) {
       this.dom.evalStatusPill.textContent = "MASTERED ✔";
       this.dom.evalStatusPill.className = "text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
-      this.dom.btnNextScenario.disabled = false;
+      this.setNextEnabled(true);
       this.renderSolvedExplanation();
       if (this.currentScenario.updatedFs) {
         this.renderFilesystem(this.currentScenario.updatedFs);
       } else {
         this.renderFilesystem(this.currentScenario.initialFs);
       }
-      this.appendTerminalLine(`\n<span class="text-emerald-400 font-bold">=== Loaded Scenario: ${this.currentScenario.title} ===</span>\n<span class="text-emerald-300/80 text-xs font-mono">✔ Mastered! Press Enter or 'Next Scenario ➔' to advance, or re-run to practice.</span>\n<span class="text-gray-400">${this.currentScenario.desc}</span>`);
+      this.appendTerminalLine(`\n<span class="text-emerald-400 font-bold">=== Loaded Scenario: ${this.currentScenario.title} ===</span>\n<span class="text-emerald-300/80 text-xs font-mono">✔ Mastered! Press Enter or 'Next Scenario ➔' to advance, or re-run to practice.</span>\n<span class="text-neutral-400">${this.currentScenario.desc}</span>`);
     } else {
       this.dom.evalStatusPill.textContent = "Awaiting command...";
-      this.dom.evalStatusPill.className = "text-[11px] font-mono px-2 py-0.5 rounded bg-gray-800 text-gray-400";
-      this.dom.btnNextScenario.disabled = true;
-      this.renderFilesystem(this.currentScenario.initialFs);
+      this.dom.evalStatusPill.className = "text-[11px] font-mono px-2 py-0.5 rounded bg-neutral-800 text-neutral-400";
+      this.setNextEnabled(false);
+      this.renderFilesystem(this.shell ? this.shell.toTree() : this.currentScenario.initialFs);
       this.renderInitialExplanation();
-      this.appendTerminalLine(`\n<span class="text-emerald-400 font-bold">=== Loaded Scenario: ${this.currentScenario.title} ===</span>\n<span class="text-gray-400">${this.currentScenario.desc}</span>`);
+      this.appendTerminalLine(`\n<span class="text-emerald-400 font-bold">=== Loaded Scenario: ${this.currentScenario.title} ===</span>\n<span class="text-neutral-400">${this.currentScenario.desc}</span>`);
     }
 
     this.dom.termInput.value = "";
     this.dom.termInput.focus();
+  }
+
+  // Keeps the right-panel Next button and the terminal's Next button (handy in full screen) in sync.
+  setNextEnabled(enabled) {
+    this.dom.btnNextScenario.disabled = !enabled;
+    const termNext = document.getElementById("btn-term-next");
+    if (termNext) termNext.classList.toggle("hidden", !enabled);
+  }
+
+  // Scenarios listed in SCENARIO_SETUP (goals.js) run on the virtual shell; the rest keep regex checks + canned output.
+  initShell() {
+    const setup = window.SCENARIO_SETUP && window.SCENARIO_SETUP[this.currentScenario.id];
+    this.shellSetup = setup || null;
+    this.shell = setup && window.VirtualShell && this.currentScenario.initialFs
+      ? new window.VirtualShell(this.currentScenario.initialFs, setup)
+      : null;
+    this.updatePrompt();
+  }
+
+  promptText() {
+    return `student@sys:${this.shell ? this.shell.promptPath() : "~"}$`;
+  }
+
+  updatePrompt() {
+    if (this.dom.promptLabel) this.dom.promptLabel.textContent = this.promptText();
   }
 
   saveSessionState() {
@@ -522,13 +584,13 @@ class CmdCraftApp {
 
   renderInitialExplanation() {
     this.dom.explanation.innerHTML = `
-      <div class="p-3 rounded-lg bg-gray-900/60 border border-gray-800 text-gray-400 space-y-2">
-        <div class="flex items-center space-x-2 text-gray-300 font-medium">
+      <div class="p-3 rounded-lg bg-neutral-900/60 border border-neutral-800 text-neutral-400 space-y-2">
+        <div class="flex items-center space-x-2 text-neutral-300 font-medium">
           <i class="fa-solid fa-crosshairs text-emerald-400"></i>
           <span>Scenario Objective</span>
         </div>
         <p class="font-mono text-emerald-300 text-xs">${this.currentScenario.objective}</p>
-        <p class="text-gray-400 text-[11px] pt-1">
+        <p class="text-neutral-400 text-[11px] pt-1">
           Type the solution into the terminal. Once entered, detailed flags and syntax explanations will unlock here!
         </p>
       </div>
@@ -537,7 +599,7 @@ class CmdCraftApp {
 
   renderFilesystem(node, level = 0) {
     if (!node) {
-      this.dom.visualFs.innerHTML = `<div class="text-gray-500 italic p-2">[Filesystem visualizer ready]</div>`;
+      this.dom.visualFs.innerHTML = `<div class="text-neutral-500 italic p-2">[Filesystem visualizer ready]</div>`;
       return;
     }
 
@@ -550,7 +612,7 @@ class CmdCraftApp {
     const indent = level * 16;
 
     itemEl.style.paddingLeft = `${indent}px`;
-    itemEl.className = `fs-item py-1 px-2 rounded flex items-center justify-between group cursor-pointer ${node.isCurrent ? 'fs-highlight' : ''}`;
+    itemEl.className = `fs-item py-1 px-2 rounded flex items-center justify-between group cursor-pointer ${node.isCurrent ? 'fs-highlight' : ''} ${node.changed ? 'fs-flash' : ''}`;
 
     // Left: Icon + Name
     const leftDiv = document.createElement("div");
@@ -562,12 +624,12 @@ class CmdCraftApp {
     } else if (node.perm && node.perm.includes("x")) {
       iconHtml = `<i class="fa-solid fa-bolt text-emerald-400 text-xs"></i>`;
     } else {
-      iconHtml = `<i class="fa-regular fa-file-code text-blue-400 text-xs"></i>`;
+      iconHtml = `<i class="fa-regular fa-file-code text-slate-400 text-xs"></i>`;
     }
 
     leftDiv.innerHTML = `
       ${iconHtml}
-      <span class="font-mono ${isDir ? 'font-bold text-gray-200' : 'text-gray-300'} truncate">
+      <span class="font-mono ${isDir ? 'font-bold text-neutral-200' : 'text-neutral-300'} truncate">
         ${node.name}
       </span>
       ${node.isCurrent ? '<span class="text-[9px] bg-emerald-500/20 text-emerald-400 px-1 rounded font-bold">CWD</span>' : ''}
@@ -575,15 +637,15 @@ class CmdCraftApp {
 
     // Right: Metadata (Permissions, Size, Owner)
     const rightDiv = document.createElement("div");
-    rightDiv.className = "flex items-center space-x-2 text-[10px] text-gray-500 font-mono";
+    rightDiv.className = "flex items-center space-x-2 text-[10px] text-neutral-500 font-mono";
     if (node.perm) {
-      rightDiv.innerHTML += `<span class="bg-gray-900 px-1.5 py-0.5 rounded text-emerald-400/90 border border-gray-800">${node.perm}</span>`;
+      rightDiv.innerHTML += `<span class="bg-neutral-900 px-1.5 py-0.5 rounded text-emerald-400/90 border border-neutral-800">${node.perm}</span>`;
     }
     if (node.owner) {
-      rightDiv.innerHTML += `<span class="text-gray-400 hidden sm:inline">${node.owner}</span>`;
+      rightDiv.innerHTML += `<span class="text-neutral-400 hidden sm:inline">${node.owner}</span>`;
     }
     if (node.size) {
-      rightDiv.innerHTML += `<span class="text-gray-400">${node.size}</span>`;
+      rightDiv.innerHTML += `<span class="text-neutral-400">${node.size}</span>`;
     }
 
     itemEl.appendChild(leftDiv);
@@ -615,7 +677,7 @@ class CmdCraftApp {
     this.historyIndex = -1;
 
     // Display user command in terminal
-    this.appendTerminalLine(`<span class="text-emerald-400 font-bold">student@sys:~$</span> <span class="text-white">${this.escapeHtml(rawCmd)}</span>`);
+    this.appendTerminalLine(`<span class="text-emerald-400 font-bold">${this.escapeHtml(this.promptText())}</span> <span class="text-neutral-50">${this.escapeHtml(rawCmd)}</span>`);
     this.dom.termInput.value = "";
 
     // Evaluate
@@ -626,7 +688,40 @@ class CmdCraftApp {
     if (!this.currentScenario) return;
 
     const normalized = cmd.trim().replace(/\s+/g, ' ');
-    const isMatch = this.currentScenario.validCommands.some(regex => regex.test(normalized));
+    // Run on the virtual shell (if this scenario has one) so output and visualizer reflect real state.
+    let shellResult = null;
+    let stateChanged = false;
+    if (this.shell) {
+      const before = this.shell.stateKey();
+      shellResult = this.shell.exec(normalized);
+      stateChanged = shellResult.handled && this.shell.stateKey() !== before;
+      if (shellResult.handled) {
+        if (shellResult.out) this.appendTerminalLine(`<span class="text-neutral-300 font-mono">${this.escapeHtml(shellResult.out.replace(/\n$/, ""))}</span>`);
+        if (shellResult.err) this.appendTerminalLine(`<span class="text-red-400 font-mono">${this.escapeHtml(shellResult.err.replace(/\n$/, ""))}</span>`);
+        this.renderFilesystem(this.shell.toTree());
+        this.updatePrompt();
+      }
+    }
+    const shellHandled = !!(shellResult && shellResult.handled);
+
+    let goalMet = false;
+    if (shellHandled && this.shellSetup) {
+      try {
+        const s = this.shellSetup;
+        goalMet = (s.goal ? !!s.goal(this.shell) : false)
+          || (s.ran ? this.shell.ran(s.ran.cmd, s.ran.flags) && this.shell.commandLog[this.shell.commandLog.length - 1].name === s.ran.cmd : false);
+      } catch (e) {
+        console.warn("Scenario goal check failed:", e);
+      }
+    }
+
+    const isMatch = goalMet || this.currentScenario.validCommands.some(regex => regex.test(normalized));
+
+    // Harmless exploration (ls, cat, a typo that changed nothing...) isn't an attempt: no penalty, no log entry.
+    if (!isMatch && shellHandled && !stateChanged && !shellResult.err) {
+      this.appendTerminalLine(`<span class="text-neutral-500 text-xs">Command ran fine, but the mission isn't complete yet. Keep exploring or use Hint.</span>`);
+      return;
+    }
 
     const firstSolve = isMatch && !this.completedScenarios.includes(this.currentScenario.id);
     if (window.CmdCloud) {
@@ -653,21 +748,21 @@ class CmdCraftApp {
       this.renderTopicPills();
       this.saveSessionState();
 
-      // Terminal Output
-      if (this.currentScenario.simulatedOutput) {
-        this.appendTerminalLine(`<span class="text-gray-300 font-mono">${this.escapeHtml(this.currentScenario.simulatedOutput)}</span>`);
+      // Terminal Output (the virtual shell already printed real output; canned text is the fallback)
+      if (!shellHandled && this.currentScenario.simulatedOutput) {
+        this.appendTerminalLine(`<span class="text-neutral-300 font-mono">${this.escapeHtml(this.currentScenario.simulatedOutput)}</span>`);
       }
-      this.appendTerminalLine(`<span class="text-emerald-400 font-bold">✔ SUCCESS: Scenario Challenge Mastered! (+${this.currentScenario.xp} XP)</span>\n<span class="text-teal-300 text-xs">👉 Press <kbd class="px-1.5 py-0.5 bg-gray-800 rounded border border-gray-700 font-mono">Enter</kbd> or click <strong>'Next Scenario ➔'</strong> to continue.</span>`);
+      // No success banner in the terminal: the status pill, Next button and breakdown panel already show it.
 
-      // Update Visual Filesystem if scenario has updated state
-      if (this.currentScenario.updatedFs) {
+      // Update Visual Filesystem: the virtual shell already drew the real state, otherwise use the canned "after" tree
+      if (!shellHandled && this.currentScenario.updatedFs) {
         this.renderFilesystem(this.currentScenario.updatedFs);
       }
 
       // Update UI Status
       this.dom.evalStatusPill.textContent = "SOLVED! ✔";
       this.dom.evalStatusPill.className = "text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
-      this.dom.btnNextScenario.disabled = false;
+      this.setNextEnabled(true);
 
       // Render Deep Explanation Card
       this.renderSolvedExplanation();
@@ -698,7 +793,7 @@ class CmdCraftApp {
       partsHtml = exp.breakdown.map(b => `
         <li class="flex items-start space-x-2">
           <code class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-bold font-mono text-xs border border-emerald-500/20">${b.part}</code>
-          <span class="text-gray-300 text-xs">${b.desc}</span>
+          <span class="text-neutral-300 text-xs">${b.desc}</span>
         </li>
       `).join("");
     }
@@ -711,7 +806,7 @@ class CmdCraftApp {
         </div>
         <ul class="space-y-2">${partsHtml}</ul>
         ${exp && exp.proTip ? `
-          <div class="mt-2 pt-2 border-t border-emerald-500/10 text-xs text-cyan-300 flex items-start space-x-2">
+          <div class="mt-2 pt-2 border-t border-emerald-500/10 text-xs text-emerald-300 flex items-start space-x-2">
             <span class="text-amber-400">⚡</span>
             <span><strong>Pro-Tip:</strong> ${exp.proTip}</span>
           </div>
@@ -727,11 +822,11 @@ class CmdCraftApp {
           <i class="fa-solid fa-triangle-exclamation"></i>
           <span>Not Quite! Let's Analyze:</span>
         </div>
-        <p class="text-gray-300">
+        <p class="text-neutral-300">
           You attempted: <code class="text-red-300 font-mono bg-black/40 px-1 py-0.5 rounded">${this.escapeHtml(attempted)}</code>
         </p>
-        <p class="text-gray-400">
-          Review the objective: <strong class="text-gray-200">${this.currentScenario.objective}</strong>. 
+        <p class="text-neutral-400">
+          Review the objective: <strong class="text-neutral-200">${this.currentScenario.objective}</strong>. 
           Check flag combinations or path specifications. Need a push? Click the <strong>Hint</strong> button above!
         </p>
       </div>
@@ -799,7 +894,7 @@ class CmdCraftApp {
 
   clearTerminal() {
     this.dom.termOutput.innerHTML = "";
-    this.appendTerminalLine(`<span class="text-gray-500 italic">[Terminal Cleared - Ready for ${this.currentScenario ? this.currentScenario.title : 'Commands'}]</span>`);
+    this.appendTerminalLine(`<span class="text-neutral-500 italic">[Terminal Cleared - Ready for ${this.currentScenario ? this.currentScenario.title : 'Commands'}]</span>`);
   }
 
   escapeHtml(str) {
