@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CmdCraft // Activity</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-[#0b0f19] text-gray-200 font-sans min-h-screen">
+  <header class="border-b border-gray-800 bg-[#111827] px-4 py-3">
+    <div class="max-w-5xl mx-auto flex items-center justify-between">
+      <a href="/" class="font-extrabold text-xl bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">CmdCraft</a>
+      <span id="who" class="text-xs text-gray-400"></span>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-4 py-6 space-y-6">
+    <p id="status" class="text-sm text-gray-400">Loading…</p>
+
+    <!-- Admin only: all users -->
+    <section id="users-section" class="hidden">
+      <h2 class="text-sm font-bold text-gray-300 mb-2"><i class="fa-solid fa-users text-cyan-400 mr-1"></i> All users</h2>
+      <div class="overflow-x-auto rounded-lg border border-gray-800">
+        <table class="w-full text-xs">
+          <thead class="bg-gray-900 text-gray-400 text-left">
+            <tr><th class="p-2">Name</th><th class="p-2">Email</th><th class="p-2">XP</th><th class="p-2">Solved</th><th class="p-2">Last active</th></tr>
+          </thead>
+          <tbody id="users-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Selected user's activity -->
+    <section id="activity-section" class="hidden">
+      <h2 id="activity-title" class="text-sm font-bold text-gray-300 mb-2"></h2>
+      <div id="stats" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4"></div>
+      <div class="overflow-x-auto rounded-lg border border-gray-800">
+        <table class="w-full text-xs">
+          <thead class="bg-gray-900 text-gray-400 text-left">
+            <tr><th class="p-2">Time</th><th class="p-2">Result</th><th class="p-2">Scenario</th><th class="p-2">Command typed</th></tr>
+          </thead>
+          <tbody id="events-body"></tbody>
+        </table>
+      </div>
+      <p class="text-[11px] text-gray-500 mt-2">Showing the most recent 300 attempts.</p>
+    </section>
+
+    <button id="btn-signin" class="hidden px-4 py-2 rounded-lg bg-emerald-500 text-black font-semibold text-sm">
+      <i class="fa-brands fa-google mr-1"></i> Sign in with Google
+    </button>
+  </main>
+
+  <script src="cloud-config.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script>
+    const ADMIN_EMAIL = "maheshkadam9298@gmail.com";
+    firebase.initializeApp(window.CMDCRAFT_CONFIG.firebase);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    const $ = id => document.getElementById(id);
+    const el = (tag, cls, text) => {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text !== undefined) e.textContent = text;
+      return e;
+    };
+    const fmt = ts => ts ? new Date(ts).toLocaleString() : "—";
+
+    function row(cells, onClick) {
+      const tr = el("tr", "border-t border-gray-800" + (onClick ? " hover:bg-gray-800/60 cursor-pointer" : ""));
+      cells.forEach(c => {
+        const td = el("td", "p-2", "");
+        if (c instanceof Node) td.appendChild(c); else td.textContent = c;
+        tr.appendChild(td);
+      });
+      if (onClick) tr.addEventListener("click", onClick);
+      return tr;
+    }
+
+    function statTile(label, value) {
+      const d = el("div", "rounded-lg border border-gray-800 bg-gray-900/70 p-3");
+      d.appendChild(el("div", "text-[11px] text-gray-500", label));
+      d.appendChild(el("div", "text-lg font-bold text-emerald-400", String(value)));
+      return d;
+    }
+
+    async function showUser(uid, label) {
+      $("activity-section").classList.remove("hidden");
+      $("activity-title").textContent = "Activity — " + label;
+      const snap = await db.collection("users").doc(uid).collection("events").orderBy("ts", "desc").limit(300).get();
+      const events = snap.docs.map(d => d.data());
+      const solved = events.filter(e => e.type === "solved");
+      const failed = events.filter(e => e.type === "failed");
+      const unique = new Set(solved.map(e => e.scenarioId)).size;
+      const accuracy = events.length ? Math.round(100 * solved.length / events.length) + "%" : "—";
+
+      const stats = $("stats");
+      stats.replaceChildren(
+        statTile("Scenarios solved", unique),
+        statTile("Correct attempts", solved.length),
+        statTile("Wrong attempts", failed.length),
+        statTile("Accuracy", accuracy)
+      );
+
+      const body = $("events-body");
+      body.replaceChildren();
+      if (!events.length) body.appendChild(row(["No activity yet.", "", "", ""]));
+      events.forEach(e => {
+        const ok = e.type === "solved";
+        const badge = el("span", "px-2 py-0.5 rounded " + (ok ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"), ok ? "Solved" : "Failed");
+        body.appendChild(row([fmt(e.ts), badge, (e.scenarioId || "") + (e.title ? " — " + e.title : ""), el("code", "text-gray-300", e.command || "")]));
+      });
+    }
+
+    async function showAllUsers() {
+      $("users-section").classList.remove("hidden");
+      const snap = await db.collection("users").get();
+      const body = $("users-body");
+      body.replaceChildren();
+      const users = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+      users.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+      users.forEach(u => {
+        const d = u.data || {};
+        let solvedCount = 0;
+        try { solvedCount = JSON.parse(d.cmdcraft_completed || "[]").length; } catch (e) { /* ignore */ }
+        body.appendChild(row([u.name || "(no name)", u.email || "", d.cmdcraft_xp || "0", solvedCount, fmt(u.updatedAt)],
+          () => showUser(u.uid, u.name || u.email || u.uid)));
+      });
+    }
+
+    $("btn-signin").addEventListener("click", () => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()));
+
+    auth.onAuthStateChanged(async user => {
+      if (!user) {
+        $("status").textContent = "Sign in to see your activity.";
+        $("btn-signin").classList.remove("hidden");
+        $("who").textContent = "";
+        return;
+      }
+      $("btn-signin").classList.add("hidden");
+      $("who").textContent = user.email;
+      const isAdmin = user.email === ADMIN_EMAIL;
+      $("status").textContent = isAdmin ? "Admin view — click a user to see their activity." : "";
+      try {
+        if (isAdmin) await showAllUsers();
+        await showUser(user.uid, "you (" + (user.displayName || user.email) + ")");
+      } catch (e) {
+        $("status").textContent = "Could not load activity: " + e.message;
+      }
+    });
+  </script>
+</body>
+</html>

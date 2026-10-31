@@ -63,12 +63,10 @@ The curriculum directly aligns with the Linux for DevOps Engineering syllabus:
 
 ---
 
-## 📂 Project Location & Launch
-`C:\Users\Dell\.gemini\antigravity\scratch\command-quest\`
-
-To launch:
-- Double click [index.html](file:///c:/Users/Dell/.gemini/antigravity/scratch/command-quest/index.html) in Windows File Explorer, or
-- Run in PowerShell:
+## 📂 Launch
+No build step or server needed. To launch:
+- Double click [index.html](index.html) in File Explorer, or
+- Run in PowerShell from the project folder:
   ```powershell
-  Start-Process "c:\Users\Dell\.gemini\antigravity\scratch\command-quest\index.html"
+  Start-Process .\index.html
   ```

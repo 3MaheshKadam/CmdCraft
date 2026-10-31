@@ -41,12 +41,12 @@
 <body class="bg-[#0b0f19] text-gray-200 font-sans min-h-screen flex flex-col selection:bg-emerald-500 selection:text-black">
 
   <!-- Top Navbar -->
-  <header class="border-b border-gray-800 bg-[#111827]/80 backdrop-blur-md sticky top-0 z-50 px-4 py-3">
-    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
-      
+  <header class="border-b border-gray-800 bg-[#111827]/80 relative z-50 px-4 py-1.5">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+
       <!-- Brand Logo & Env Selector -->
       <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
           <i class="fa-solid fa-terminal text-lg"></i>
         </div>
         <div>
@@ -54,11 +54,10 @@
             <h1 class="font-extrabold text-xl tracking-tight bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">CmdCraft</h1>
             <span class="text-xs font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">v1.0</span>
           </div>
-          <p class="text-xs text-gray-400">Gamified Scenario-Driven Command Arena</p>
         </div>
 
         <!-- Environments Navigation -->
-        <div class="ml-6 hidden md:flex items-center space-x-1 p-1 bg-gray-900/90 border border-gray-800 rounded-lg text-xs font-medium">
+        <div class="ml-6 hidden 2xl:flex items-center space-x-1 p-1 bg-gray-900/90 border border-gray-800 rounded-lg text-xs font-medium">
           <button id="env-linux" class="px-3 py-1.5 rounded-md bg-emerald-500 text-black font-semibold flex items-center space-x-1.5 shadow-sm transition">
             <i class="fa-brands fa-linux text-sm"></i>
             <span>Linux Terminal</span>
@@ -92,6 +91,18 @@
           </div>
         </div>
 
+        <!-- Google Sign-in (shown only when Firebase is configured in cloud-config.js) -->
+        <button id="btn-auth" class="hidden h-8 px-3 rounded-lg bg-gray-800/80 hover:bg-gray-700 text-gray-300 flex items-center space-x-1.5 transition text-xs border border-gray-700" title="Sign in with Google to save progress across devices">
+          <i class="fa-brands fa-google text-emerald-400"></i>
+          <span id="btn-auth-label">Sign in</span>
+        </button>
+
+        <!-- Activity log (shown when signed in) -->
+        <a id="btn-activity" href="activity.html" target="_blank" rel="noopener" class="hidden h-8 px-3 rounded-lg bg-gray-800/80 hover:bg-gray-700 text-gray-300 flex items-center space-x-1.5 transition text-xs border border-gray-700" title="View your activity log">
+          <i class="fa-solid fa-chart-line text-cyan-400"></i>
+          <span>Activity</span>
+        </a>
+
         <!-- Audio Toggle -->
         <button id="sound-toggle" class="w-8 h-8 rounded-lg bg-gray-800/80 hover:bg-gray-700 text-gray-300 flex items-center justify-center transition text-xs border border-gray-700" title="Toggle Sound FX">
           <i class="fa-solid fa-volume-high" id="sound-icon"></i>
@@ -107,11 +118,11 @@
   </header>
 
   <!-- Sub-bar: Mode Switcher & Topic Selector -->
-  <div class="border-b border-gray-800 bg-[#0e1422] px-4 py-2.5">
-    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+  <div class="border-b border-gray-800 bg-[#0e1422] px-4 py-1.5">
+    <div class="max-w-7xl mx-auto flex flex-wrap lg:flex-nowrap items-center justify-between gap-2">
       
       <!-- 2 Modes: Topic-wise vs Entire Syllabus -->
-      <div class="flex items-center bg-gray-900 border border-gray-800 p-1 rounded-lg">
+      <div class="flex items-center bg-gray-900 border border-gray-800 p-0.5 rounded-lg shrink-0">
         <button id="mode-topic" class="px-4 py-1.5 text-xs font-semibold rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center space-x-2 transition">
           <i class="fa-solid fa-layer-group"></i>
           <span>1. Topic-Wise Drills</span>
@@ -123,12 +134,12 @@
       </div>
 
       <!-- Topic Pills (Visible in Topic-Wise Mode) -->
-      <div id="topic-selector-container" class="flex items-center overflow-x-auto space-x-1.5 py-1 scrollbar-thin">
+      <div id="topic-selector-container" class="flex items-center overflow-x-auto space-x-1.5 py-0.5 scrollbar-thin min-w-0 flex-1">
         <!-- Rendered dynamically by JS -->
       </div>
 
       <!-- Quick Action / Navigation -->
-      <div class="flex items-center space-x-2">
+      <div class="flex items-center space-x-2 shrink-0">
         <button id="btn-hint" class="px-3 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-medium flex items-center space-x-1.5 transition">
           <i class="fa-regular fa-lightbulb"></i>
           <span>Hint</span>
@@ -356,6 +367,8 @@
   </div>
 
   <!-- Scripts -->
+  <script src="cloud-config.js"></script>
+  <script src="cloud.js"></script>
   <script src="scenarios.js"></script>
   <script src="app.js"></script>
 </body>

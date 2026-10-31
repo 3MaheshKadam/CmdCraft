@@ -200,6 +200,7 @@ class CmdCraftApp {
     this.bindEvents();
     this.loadScenarioQueue();
     this.renderCurrentScenario();
+    this.booted = true;
     setTimeout(() => {
       if (this.dom.termInput) this.dom.termInput.focus();
     }, 150);
@@ -234,6 +235,12 @@ class CmdCraftApp {
     localStorage.setItem("cmdcraft_xp", this.xp.toString());
     localStorage.setItem("cmdcraft_streak", this.streak.toString());
     localStorage.setItem("cmdcraft_completed", JSON.stringify(this.completedScenarios));
+    this.markChanged();
+  }
+
+  // Tell the cloud layer progress changed; ignored while booting so a fresh device doesn't overwrite the cloud save.
+  markChanged() {
+    if (this.booted && window.CmdCloud) window.CmdCloud.touch();
   }
 
   bindEvents() {
@@ -324,7 +331,7 @@ class CmdCraftApp {
 
     // Reset Progress button
     if (this.dom.btnReset) {
-      this.dom.btnReset.addEventListener("click", () => {
+      this.dom.btnReset.addEventListener("click", async () => {
         if (confirm("Reset all saved progress (XP, streaks, and completed scenarios) and restart from Scenario 1?")) {
           localStorage.removeItem("cmdcraft_xp");
           localStorage.removeItem("cmdcraft_streak");
@@ -334,6 +341,7 @@ class CmdCraftApp {
           localStorage.removeItem("cmdcraft_topic_indices");
           localStorage.removeItem("cmdcraft_syllabus_index");
           localStorage.removeItem("cmdcraft_last_scenario_id");
+          if (window.CmdCloud) await window.CmdCloud.reset();
           location.reload();
         }
       });
@@ -506,6 +514,7 @@ class CmdCraftApp {
       if (this.currentScenario) {
         localStorage.setItem("cmdcraft_last_scenario_id", this.currentScenario.id);
       }
+      this.markChanged();
     } catch (e) {
       console.warn("LocalStorage save error:", e);
     }
@@ -619,10 +628,21 @@ class CmdCraftApp {
     const normalized = cmd.trim().replace(/\s+/g, ' ');
     const isMatch = this.currentScenario.validCommands.some(regex => regex.test(normalized));
 
+    const firstSolve = isMatch && !this.completedScenarios.includes(this.currentScenario.id);
+    if (window.CmdCloud) {
+      window.CmdCloud.log(isMatch ? "solved" : "failed", {
+        scenarioId: this.currentScenario.id,
+        title: this.currentScenario.title,
+        command: normalized,
+        mode: this.currentMode,
+        firstSolve
+      });
+    }
+
     if (isMatch) {
       this.sound.playSuccess();
       this.isSolved = true;
-      
+
       // Update streak and XP
       if (!this.completedScenarios.includes(this.currentScenario.id)) {
         this.xp += this.currentScenario.xp;

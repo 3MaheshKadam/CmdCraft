@@ -1,0 +1,12 @@
+.vercel
+.env*
+.firebase/
+firebase-debug.log*
+node_modules/
+__pycache__/
+*.pyc
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
