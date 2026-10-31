@@ -11,7 +11,8 @@
   const DEFAULT_GROUP = "ubuntu";
   const KNOWN = new Set([
     "pwd", "cd", "ls", "cat", "mkdir", "rmdir", "touch", "rm", "cp", "mv", "chmod", "chown",
-    "ln", "echo", "whoami", "head", "tail", "wc", "grep", "sort", "uniq", "tee", "df"
+    "ln", "echo", "whoami", "head", "tail", "wc", "grep", "sort", "uniq", "tee", "df",
+    "find", "awk", "sed", "cut"
   ]);
 
   // ---------- helpers ----------
@@ -137,6 +138,8 @@
       this.oldpwd = null;
       this.commandLog = [];
       this.lastSig = null;
+      this.sys = null;
+      this.follow = null;
 
       if (tree) {
         this.viewRoot = normalize(tree.name);
@@ -153,9 +156,10 @@
       Object.entries(setup.files || {}).forEach(([p, content]) => {
         const abs = this.abs(p);
         let n = this.lookup(abs);
-        if (!n) n = this.createFile(abs);
+        if (!n) { this.mkdirp(dirname(abs)); n = this.createFile(abs); }
         if (n) { n.content = content; if (!n.sizeDeclared) n.size = content.length; }
       });
+      if (setup.system && root.SystemState) { this.sys = new root.SystemState(setup.system); this.sys.syncAccountFiles(this); }
       this.snapshotSignature();
     }
 
@@ -286,12 +290,17 @@
           const words = stage.filter(t => t.t === "word").map(t => t.v);
           let name = words[0] === "sudo" ? words[1] : words[0];
           if (!name) return { handled: false };
-          if (!KNOWN.has(name)) return { handled: false };
+          if (!KNOWN.has(name) && !(this.sys && this.sys.handles(name))) return { handled: false };
           if (name === "df" && words.some(w => w.startsWith("-") && !/^-[hT]*$/.test(w))) return { handled: false };
+          if (!this.supported(name, words.slice(words.indexOf(name) + 1))) return { handled: false };
         }
       }
 
       let out = "", err = "";
+      const logStart = this.commandLog.length;
+      const sysBefore = this.sys ? this.sys.beginExec() : null;
+      this.follow = null;
+      if (this.sys) this.sys.followRequest = null;
       for (const pipeline of lists) {
         let stdin = "";
         for (let s = 0; s < pipeline.length; s++) {
@@ -301,7 +310,39 @@
           if (s === pipeline.length - 1) out += res.out;
         }
       }
+      if (this.sys) {
+        this.sys.finishExec(sysBefore);
+        if (this.sys.followRequest) {
+          const unit = this.sys.followRequest.unit;
+          this.follow = { kind: "journal", unit, next: () => this.sys.liveEntry(unit) };
+        }
+      }
+      this.lastExec = { line, cmds: this.commandLog.slice(logStart), out, err };
       return { handled: true, out, err };
+    }
+
+    // Syntax each text tool understands; anything else is left to the scenario's own matcher.
+    supported(name, args) {
+      if (this.sys && this.sys.handles(name)) return this.sys.supported(name, args);
+      if (name === "awk") {
+        const rest = [];
+        for (let i = 0; i < args.length; i++) {
+          if (args[i] === "-F") { i++; continue; }
+          if (args[i].startsWith("-F")) continue;
+          rest.push(args[i]);
+        }
+        return rest.length > 0 && /^\{\s*print(\s+[^}]*)?\}$/.test(rest[0]);
+      }
+      if (name === "sed") {
+        const expr = args.find(a => !a.startsWith("-"));
+        return !!expr && /^s(.)(.*?)\1(.*?)\1[gI]*$/.test(expr);
+      }
+      if (name === "cut") return args.some(a => a.startsWith("-d")) && args.some(a => a.startsWith("-f"));
+      if (name === "find") {
+        const preds = ["-name", "-iname", "-type", "-size", "-maxdepth", "-print"];
+        return args.every((a, i) => !a.startsWith("-") || preds.includes(a));
+      }
+      return true;
     }
 
     runSimple(stage, stdin) {
@@ -342,11 +383,18 @@
         else if (a === "--all") flags.add("a");
         else if (a === "--recursive") flags.add("r");
         else if (a === "--parents") flags.add("p");
+        else if (a === "--ignore-case") flags.add("i");
+        else if (a === "--invert-match") flags.add("v");
+        else if (a === "--line-number") flags.add("n");
+        else if (a === "--count") flags.add("c");
       });
       this.commandLog.push({ name, flags, args });
 
       const fn = this["cmd_" + name];
-      let res = fn ? fn.call(this, args, flags, stdin) : { out: "", err: "" };
+      let res;
+      if (fn) res = fn.call(this, args, flags, stdin);
+      else if (this.sys && this.sys.handles(name)) res = this.sys.command(name).call(this.sys, args, flags, stdin, this);
+      else res = { out: "", err: "" };
       let out = res.out || "", err = res.err || "";
 
       // Apply redirections.
@@ -686,7 +734,27 @@
       const { text, err } = this.textLines(args, stdin, "tail");
       const n = this.countArg(args, 10);
       const lines = text.replace(/\n$/, "").split("\n");
-      return { out: text ? lines.slice(-n).join("\n") + "\n" : "", err };
+      let out = text ? lines.slice(-n).join("\n") + "\n" : "";
+      if (flags.has("f") || flags.has("F")) {
+        out += "[sandbox: following the file for new lines. Press Ctrl+C to stop]\n";
+        const target = args.filter(a => !a.startsWith("-") && !/^\d+$/.test(a))[0];
+        const node = target && this.lookup(this.abs(target), true);
+        if (node && node.type === "file") {
+          let tick = 0;
+          this.follow = {
+            kind: "file", next: () => {
+              const pool = (node.content || "").replace(/\n$/, "").split("\n").filter(l => l && !/ERROR/.test(l));
+              const base = pool.length ? pool[tick % pool.length] : "heartbeat ok";
+              tick++;
+              const line = base.replace(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:)(\d{2})/, (m, a) => a + String((tick * 3) % 60).padStart(2, "0"));
+              node.content = (node.content || "") + line + "\n";
+              node.size = (node.size || 0) + line.length + 1;
+              return line;
+            }
+          };
+        }
+      }
+      return { out, err };
     }
 
     cmd_wc(args, flags, stdin) {
@@ -702,24 +770,37 @@
     cmd_grep(args, flags, stdin) {
       const rest = args.filter(a => !(a.startsWith("-") && a.length > 1));
       if (!rest.length) return { err: "Usage: grep [OPTION]... PATTERNS [FILE]...\n" };
+      const recursive = flags.has("r") || flags.has("R");
       let re;
       try { re = new RegExp(rest[0], flags.has("i") ? "i" : ""); } catch (e) { return { err: "grep: Invalid regular expression\n" }; }
-      const files = rest.slice(1);
+      let files = rest.slice(1);
+      const bareRoot = recursive && !files.length; // plain "grep -r pat" prints paths without "./"
+      if (bareRoot) files = ["."];
       const sources = files.length ? [] : [{ name: "", text: stdin }];
       let err = "";
       files.forEach(f => {
         const n = this.lookup(this.abs(f), true);
-        if (!n) err += `grep: ${f}: No such file or directory\n`;
-        else if (n.type === "dir") err += `grep: ${f}: Is a directory\n`;
-        else sources.push({ name: f, text: n.content || "" });
+        if (!n) { err += `grep: ${f}: No such file or directory\n`; return; }
+        if (n.type === "dir") {
+          if (!recursive) { err += `grep: ${f}: Is a directory\n`; return; }
+          const walk = (node, rel) => {
+            [...node.children.entries()].sort((a, b) => a[0].localeCompare(b[0])).forEach(([k, v]) => {
+              const path = rel ? rel + "/" + k : k;
+              if (v.type === "dir") walk(v, path);
+              else if (v.type === "file") sources.push({ name: bareRoot ? path : f.replace(/\/$/, "") + "/" + path, text: v.content || "" });
+            });
+          };
+          walk(n, "");
+        } else sources.push({ name: f, text: n.content || "" });
       });
+      const multi = recursive || files.length > 1;
       let out = "";
       sources.forEach(src => {
         const lines = src.text.replace(/\n$/, "").split("\n");
         const hits = [];
         lines.forEach((l, i) => { if (src.text && re.test(l) !== flags.has("v")) hits.push({ l, i }); });
-        if (flags.has("c")) out += (files.length > 1 ? src.name + ":" : "") + hits.length + "\n";
-        else hits.forEach(h => { out += (files.length > 1 ? src.name + ":" : "") + (flags.has("n") ? (h.i + 1) + ":" : "") + h.l + "\n"; });
+        if (flags.has("c")) out += (multi ? src.name + ":" : "") + hits.length + "\n";
+        else hits.forEach(h => { out += (multi ? src.name + ":" : "") + (flags.has("n") ? (h.i + 1) + ":" : "") + h.l + "\n"; });
       });
       return { out, err };
     }
@@ -749,6 +830,121 @@
       return { out: stdin, err };
     }
 
+    cmd_find(args) {
+      const paths = [];
+      let i = 0;
+      while (i < args.length && !args[i].startsWith("-")) paths.push(args[i++]);
+      if (!paths.length) paths.push(".");
+      const want = {};
+      for (; i < args.length; i++) {
+        const a = args[i];
+        if (a === "-print") continue;
+        want[a] = args[++i];
+      }
+      const nameRe = want["-name"] ? globToRegex(want["-name"]) : want["-iname"] ? new RegExp(globToRegex(want["-iname"]).source, "i") : null;
+      let sizeTest = null;
+      if (want["-size"]) {
+        const m = /^([+-]?)(\d+)([cwbkKMG]?)$/.exec(want["-size"]);
+        if (m) {
+          const unit = { c: 1, w: 2, b: 512, k: 1024, K: 1024, M: 1048576, G: 1073741824 }[m[3] || "b"];
+          const limit = parseInt(m[2], 10) * unit;
+          sizeTest = sz => (m[1] === "+" ? sz > limit : m[1] === "-" ? sz < limit : Math.ceil(sz / unit) === parseInt(m[2], 10));
+        }
+      }
+      const maxDepth = want["-maxdepth"] !== undefined ? parseInt(want["-maxdepth"], 10) : Infinity;
+      let out = "", err = "";
+      paths.forEach(p => {
+        const start = this.lookup(this.abs(p), true);
+        if (!start) { err += "find: '" + p + "': No such file or directory\n"; return; }
+        const visit = (node, shown, depth) => {
+          const typeOk = !want["-type"] || (want["-type"] === "d" ? node.type === "dir" : want["-type"] === "l" ? node.type === "link" : node.type === "file");
+          const nameOk = !nameRe || nameRe.test(shown.slice(shown.lastIndexOf("/") + 1));
+          const sizeOk = !sizeTest || (node.type === "file" && sizeTest(node.size || 0));
+          if (typeOk && nameOk && sizeOk) out += shown + "\n";
+          if (node.type === "dir" && depth < maxDepth) {
+            [...node.children.entries()].sort((a, b) => a[0].localeCompare(b[0])).forEach(([k, v]) => visit(v, shown.replace(/\/$/, "") + "/" + k, depth + 1));
+          }
+        };
+        visit(start, p, 0);
+      });
+      return { out, err };
+    }
+
+    cmd_awk(args, flags, stdin) {
+      let sep = null, prog = null;
+      const files = [];
+      for (let i = 0; i < args.length; i++) {
+        if (args[i] === "-F") { sep = args[++i]; continue; }
+        if (args[i].startsWith("-F")) { sep = args[i].slice(2); continue; }
+        if (prog === null) prog = args[i]; else files.push(args[i]);
+      }
+      const { text, err } = this.textLines(files, stdin, "awk");
+      const body = /^\{\s*print(?:\s+([^}]*))?\}$/.exec(prog)[1] || "$0";
+      const exprs = body.split(",").map(x => x.trim()).filter(Boolean);
+      let out = "";
+      if (text !== "") {
+        text.replace(/\n$/, "").split("\n").forEach(line => {
+          const fields = sep ? line.split(sep) : line.trim().split(/\s+/);
+          const pick = e => {
+            if (e === "$0") return line;
+            if (e === "$NF") return fields[fields.length - 1];
+            const m = /^\$(\d+)$/.exec(e);
+            if (m) return fields[parseInt(m[1], 10) - 1] || "";
+            return e.replace(/^"|"$/g, "");
+          };
+          out += exprs.map(pick).join(" ") + "\n";
+        });
+      }
+      return { out, err };
+    }
+
+    cmd_sed(args, flags, stdin) {
+      const rest = args.filter(a => !(a.startsWith("-") && a.length > 1));
+      const m = /^s(.)(.*?)\1(.*?)\1([gI]*)$/.exec(rest[0]);
+      const files = rest.slice(1);
+      const { text, err } = this.textLines(files, stdin, "sed");
+      let re;
+      try { re = new RegExp(m[2], (m[4].includes("g") ? "g" : "") + (m[4].includes("I") ? "i" : "")); } catch (e) { return { err: "sed: -e expression #1: invalid regular expression\n" }; }
+      const sub = t => t.replace(/\n$/, "").split("\n").map(l => l.replace(re, () => m[3])).join("\n") + (t ? "\n" : "");
+      if (flags.has("i") && files.length) {
+        files.forEach(f => {
+          const n = this.lookup(this.abs(f), true);
+          if (n && n.type === "file") { n.content = sub(n.content || ""); n.mtime = nowStamp(); }
+        });
+        return { err };
+      }
+      return { out: sub(text), err };
+    }
+
+    cmd_cut(args, flags, stdin) {
+      let delim = "\t", fieldSpec = null;
+      const files = [];
+      for (let i = 0; i < args.length; i++) {
+        const a = args[i];
+        if (a === "-d") delim = args[++i];
+        else if (a.startsWith("-d")) delim = a.slice(2);
+        else if (a === "-f") fieldSpec = args[++i];
+        else if (a.startsWith("-f")) fieldSpec = a.slice(2);
+        else files.push(a);
+      }
+      const { text, err } = this.textLines(files, stdin, "cut");
+      const wanted = [];
+      String(fieldSpec).split(",").forEach(part => {
+        const r = /^(\d*)-(\d*)$/.exec(part);
+        if (r) { for (let n = parseInt(r[1] || "1", 10); n <= parseInt(r[2] || "99", 10); n++) wanted.push(n); }
+        else wanted.push(parseInt(part, 10));
+      });
+      let out = "";
+      if (text !== "") {
+        text.replace(/\n$/, "").split("\n").forEach(line => {
+          if (!line.includes(delim)) { out += line + "\n"; return; }
+          const f = line.split(delim);
+          out += wanted.filter(n => n >= 1 && n <= f.length).map(n => f[n - 1]).join(delim) + "\n";
+        });
+      }
+      return { out, err };
+    }
+
     // `df` is read-only and not tied to the virtual filesystem, so it returns fixed sample output.
     cmd_df() {
       return { out: "Filesystem      Size  Used Avail Use% Mounted on\n/dev/root        29G  8.2G   21G  29% /\ntmpfs           2.0G     0  2.0G   0% /dev/shm\n" };
@@ -768,7 +964,7 @@
     snapshotSignature() { this.lastSig = this.pathSignatures(); }
 
     // Cheap fingerprint of everything a command can change (filesystem + current directory).
-    stateKey() { return this.cwd + "\n" + [...this.pathSignatures().entries()].join("\n"); }
+    stateKey() { return this.cwd + "\n" + [...this.pathSignatures().entries()].join("\n") + (this.sys ? "\n" + this.sys.stateKey() : ""); }
 
     // Build a tree in the scenario `initialFs` format, flagging nodes changed since the last call.
     toTree() {

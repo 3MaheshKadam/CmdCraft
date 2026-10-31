@@ -8,57 +8,102 @@
   <script src="theme.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&display=swap">
+  <style>
+    .cell { width: 14px; height: 14px; border-radius: 3px; }
+    .bar-fill { border-radius: 0 4px 4px 0; }
+    #tip { position: fixed; z-index: 60; pointer-events: none; max-width: 260px; }
+  </style>
 </head>
 <body class="bg-surface-0 text-neutral-200 font-sans min-h-screen">
   <header class="border-b border-neutral-800 bg-surface-1 px-4 py-3">
     <div class="max-w-5xl mx-auto flex items-center justify-between">
-      <a href="/" class="font-extrabold text-xl bg-gradient-to-r from-emerald-400 to-emerald-400 bg-clip-text text-transparent">CmdCraft</a>
-      <span id="who" class="text-xs text-neutral-400"></span>
+      <a href="/" class="font-extrabold text-xl text-emerald-400">CmdCraft</a>
+      <div class="flex items-center space-x-3 text-xs text-neutral-400">
+        <span id="who"></span>
+        <a href="/" class="hover:text-neutral-200"><i class="fa-solid fa-arrow-left mr-1"></i>Back to practice</a>
+      </div>
     </div>
   </header>
 
-  <main class="max-w-5xl mx-auto px-4 py-6 space-y-6">
+  <main class="max-w-5xl mx-auto px-4 py-6 space-y-8">
     <p id="status" class="text-sm text-neutral-400">Loading…</p>
-
-    <!-- Admin only: all users -->
-    <section id="users-section" class="hidden">
-      <h2 class="text-sm font-bold text-neutral-300 mb-2"><i class="fa-solid fa-users text-emerald-400 mr-1"></i> All users</h2>
-      <div class="overflow-x-auto rounded-lg border border-neutral-800">
-        <table class="w-full text-xs">
-          <thead class="bg-neutral-900 text-neutral-400 text-left">
-            <tr><th class="p-2">Name</th><th class="p-2">Email</th><th class="p-2">XP</th><th class="p-2">Solved</th><th class="p-2">Last active</th></tr>
-          </thead>
-          <tbody id="users-body"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- Selected user's activity -->
-    <section id="activity-section" class="hidden">
-      <h2 id="activity-title" class="text-sm font-bold text-neutral-300 mb-2"></h2>
-      <div id="stats" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4"></div>
-      <div class="overflow-x-auto rounded-lg border border-neutral-800">
-        <table class="w-full text-xs">
-          <thead class="bg-neutral-900 text-neutral-400 text-left">
-            <tr><th class="p-2">Time</th><th class="p-2">Result</th><th class="p-2">Scenario</th><th class="p-2">Command typed</th></tr>
-          </thead>
-          <tbody id="events-body"></tbody>
-        </table>
-      </div>
-      <p class="text-[11px] text-neutral-500 mt-2">Showing the most recent 300 attempts.</p>
-    </section>
 
     <button id="btn-signin" class="hidden px-4 py-2 rounded-lg bg-emerald-500 text-black font-semibold text-sm">
       <i class="fa-brands fa-google mr-1"></i> Sign in with Google
     </button>
+
+    <div id="dash" class="hidden space-y-8">
+      <!-- Combined consistency (all subjects) -->
+      <section>
+        <h2 class="text-sm font-bold text-neutral-200">Practice days <span class="font-normal text-neutral-500">· all subjects</span></h2>
+        <p class="text-xs text-neutral-500 mb-3">Attempts per day, last 15 weeks. A stronger colour means more attempts.</p>
+        <div id="cal-all"></div>
+      </section>
+
+      <!-- One heatmap per subject -->
+      <section>
+        <h2 class="text-sm font-bold text-neutral-200">Heatmap by subject</h2>
+        <p class="text-xs text-neutral-500 mb-3">Each subject keeps its own record. Planned subjects appear here once you start practicing them.</p>
+        <div id="subject-cards" class="grid grid-cols-1 lg:grid-cols-2 gap-4"></div>
+      </section>
+
+      <!-- Subject filter for the detail sections below -->
+      <section>
+        <div id="chips" class="flex flex-wrap items-center gap-2 text-xs"></div>
+      </section>
+
+      <!-- Headline numbers (for the selected subject) -->
+      <section id="stats" class="grid grid-cols-2 sm:grid-cols-5 gap-3"></section>
+
+      <!-- Weak spots -->
+      <section>
+        <h2 class="text-sm font-bold text-neutral-200">Accuracy by topic</h2>
+        <p class="text-xs text-neutral-500 mb-3">Share of attempts that were correct. Weakest first.</p>
+        <div id="topics" class="space-y-1.5"></div>
+      </section>
+
+      <section>
+        <h2 class="text-sm font-bold text-neutral-200">Needs practice</h2>
+        <p class="text-xs text-neutral-500 mb-3">Scenarios you failed most, with the wrong command you typed most often.</p>
+        <div class="overflow-x-auto rounded-lg border border-neutral-800">
+          <table class="w-full text-xs">
+            <thead class="bg-neutral-900 text-neutral-400 text-left">
+              <tr><th class="p-2">Scenario</th><th class="p-2">Failed</th><th class="p-2">Tries</th><th class="p-2">Status</th><th class="p-2">Most common wrong command</th></tr>
+            </thead>
+            <tbody id="practice-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Raw log -->
+      <section>
+        <h2 class="text-sm font-bold text-neutral-200 mb-3">Recent attempts</h2>
+        <div class="overflow-x-auto rounded-lg border border-neutral-800">
+          <table class="w-full text-xs">
+            <thead class="bg-neutral-900 text-neutral-400 text-left">
+              <tr><th class="p-2">Time</th><th class="p-2">Result</th><th class="p-2">Scenario</th><th class="p-2">Command typed</th></tr>
+            </thead>
+            <tbody id="events-body"></tbody>
+          </table>
+        </div>
+        <p id="log-note" class="text-[11px] text-neutral-500 mt-2"></p>
+      </section>
+    </div>
   </main>
 
+  <div id="tip" class="hidden px-2.5 py-1.5 rounded-md border border-neutral-700 bg-surface-1 text-[11px] text-neutral-200 shadow-lg"></div>
+
+  <script src="scenarios.js"></script>
+  <script src="subjects.js"></script>
   <script src="cloud-config.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script>
-    const ADMIN_EMAIL = "maheshkadam9298@gmail.com";
+    const MAX_EVENTS = 2000;   // analytics window
+    const LOG_ROWS = 100;      // rows shown in the raw log
+    const WEEKS = 15;
+
     firebase.initializeApp(window.CMDCRAFT_CONFIG.firebase);
     const auth = firebase.auth();
     const db = firebase.firestore();
@@ -70,74 +115,287 @@
       if (text !== undefined) e.textContent = text;
       return e;
     };
-    const fmt = ts => ts ? new Date(ts).toLocaleString() : "—";
+    const pct = (a, b) => (b ? Math.round((100 * a) / b) : 0);
+    const dayKey = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    const fmtTime = ts => new Date(ts).toLocaleString();
 
-    function row(cells, onClick) {
-      const tr = el("tr", "border-t border-neutral-800" + (onClick ? " hover:bg-neutral-800/60 cursor-pointer" : ""));
-      cells.forEach(c => {
-        const td = el("td", "p-2", "");
-        if (c instanceof Node) td.appendChild(c); else td.textContent = c;
-        tr.appendChild(td);
-      });
-      if (onClick) tr.addEventListener("click", onClick);
-      return tr;
-    }
+    // scenario id -> { title, topic name }
+    const SCEN = {};
+    [...SCENARIOS, ...SYLLABUS_INCIDENTS].forEach(s => {
+      const t = LINUX_TOPICS.find(x => x.id === s.topic);
+      SCEN[s.id] = { title: s.title, topic: t ? t.name.replace(/^\d+\.\s*/, "") : "Incident Sim" };
+    });
+    const TOTAL_SCENARIOS = SCENARIOS.length + SYLLABUS_INCIDENTS.length;
+    // Topic within a subject; scenarios of subjects without a topic list yet fall back to the subject name.
+    const topicOf = id => (SCEN[id] ? SCEN[id].topic : (SUBJECTS.find(s => s.id === subjectOf(id)) || { name: "Other" }).name);
 
-    function statTile(label, value) {
-      const d = el("div", "rounded-lg border border-neutral-800 bg-neutral-900/70 p-3");
+    // ---------- tooltip (shared by every chart mark) ----------
+    const tip = $("tip");
+    document.addEventListener("mouseover", e => {
+      const t = e.target.closest("[data-tip]");
+      if (!t) { tip.classList.add("hidden"); return; }
+      tip.textContent = t.dataset.tip;
+      tip.classList.remove("hidden");
+    });
+    document.addEventListener("mousemove", e => {
+      if (tip.classList.contains("hidden")) return;
+      const w = tip.offsetWidth, h = tip.offsetHeight;
+      tip.style.left = Math.min(e.clientX + 12, window.innerWidth - w - 8) + "px";
+      tip.style.top = (e.clientY + 16 + h > window.innerHeight ? e.clientY - h - 10 : e.clientY + 16) + "px";
+    });
+
+    // ---------- headline numbers ----------
+    function tile(label, value, sub) {
+      const d = el("div", "rounded-lg border border-neutral-800 bg-surface-1 p-3");
       d.appendChild(el("div", "text-[11px] text-neutral-500", label));
-      d.appendChild(el("div", "text-lg font-bold text-emerald-400", String(value)));
+      d.appendChild(el("div", "text-xl font-bold text-neutral-50", String(value)));
+      if (sub) d.appendChild(el("div", "text-[11px] text-neutral-500", sub));
       return d;
     }
 
-    async function showUser(uid, label) {
-      $("activity-section").classList.remove("hidden");
-      $("activity-title").textContent = "Activity — " + label;
-      const snap = await db.collection("users").doc(uid).collection("events").orderBy("ts", "desc").limit(300).get();
-      const events = snap.docs.map(d => d.data());
+    function dayStreaks(days) {
+      const set = new Set(days);
+      let best = 0, run = 0, prev = null;
+      [...set].sort().forEach(k => {
+        const d = new Date(k + "T00:00:00");
+        run = prev && (d - prev) / 86400000 === 1 ? run + 1 : 1;
+        best = Math.max(best, run);
+        prev = d;
+      });
+      // current streak counts back from today, or from yesterday if you haven't practiced yet today
+      let cur = 0;
+      const d = new Date();
+      if (!set.has(dayKey(d))) d.setDate(d.getDate() - 1);
+      while (set.has(dayKey(d))) { cur++; d.setDate(d.getDate() - 1); }
+      return { cur, best };
+    }
+
+    function renderStats(events) {
       const solved = events.filter(e => e.type === "solved");
-      const failed = events.filter(e => e.type === "failed");
       const unique = new Set(solved.map(e => e.scenarioId)).size;
-      const accuracy = events.length ? Math.round(100 * solved.length / events.length) + "%" : "—";
-
-      const stats = $("stats");
-      stats.replaceChildren(
-        statTile("Scenarios solved", unique),
-        statTile("Correct attempts", solved.length),
-        statTile("Wrong attempts", failed.length),
-        statTile("Accuracy", accuracy)
+      const days = events.map(e => dayKey(new Date(e.ts)));
+      const { cur, best } = dayStreaks(days);
+      $("stats").replaceChildren(
+        activeSubject === "linux" ? tile("Scenarios solved", unique + " / " + TOTAL_SCENARIOS, pct(unique, TOTAL_SCENARIOS) + "% of the course") : tile("Scenarios solved", unique),
+        tile("Attempts", events.length, solved.length + " correct"),
+        tile("Accuracy", pct(solved.length, events.length) + "%"),
+        tile("Current streak", cur + (cur === 1 ? " day" : " days"), "best: " + best),
+        tile("Days practiced", new Set(days).size)
       );
+    }
 
-      const body = $("events-body");
-      body.replaceChildren();
-      if (!events.length) body.appendChild(row(["No activity yet.", "", "", ""]));
+    // ---------- calendar heatmap (one hue, light -> dark) ----------
+    const HEAT_ALPHA = [0, 0.22, 0.45, 0.7, 1];
+    const heatStyle = level => (level === 0 ? "background:rgb(var(--n-800))" : `background:rgb(var(--emerald-500) / ${HEAT_ALPHA[level]})`);
+    const heatLevel = n => (n === 0 ? 0 : n <= 2 ? 1 : n <= 5 ? 2 : n <= 10 ? 3 : 4);
+
+    // Builds one heatmap (month labels, 7-row grid, legend) for a set of events.
+    function buildHeatmap(events) {
+      const perDay = {};
       events.forEach(e => {
-        const ok = e.type === "solved";
-        const badge = el("span", "px-2 py-0.5 rounded " + (ok ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"), ok ? "Solved" : "Failed");
-        body.appendChild(row([fmt(e.ts), badge, (e.scenarioId || "") + (e.title ? " — " + e.title : ""), el("code", "text-neutral-300", e.command || "")]));
+        const k = dayKey(new Date(e.ts));
+        (perDay[k] = perDay[k] || { n: 0, ok: 0 }).n++;
+        if (e.type === "solved") perDay[k].ok++;
+      });
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const start = new Date(today);
+      start.setDate(start.getDate() - ((today.getDay() + 6) % 7) - (WEEKS - 1) * 7); // Monday of the first week
+
+      const root = el("div", "");
+      const scroller = el("div", "overflow-x-auto pb-1");
+      const months = el("div", "flex text-[10px] text-neutral-500 mb-1 ml-8");
+      const row = el("div", "flex");
+      const dows = el("div", "flex flex-col justify-between text-[10px] text-neutral-500 pr-2 py-0.5");
+      dows.style.height = "112px";
+      ["Mon", "Wed", "Fri"].forEach(t => dows.appendChild(el("span", "", t)));
+      const cal = el("div", "grid grid-flow-col gap-[2px]");
+      cal.style.gridTemplateRows = "repeat(7,14px)";
+
+      let lastMonth = -1;
+      for (let w = 0; w < WEEKS; w++) {
+        const m = new Date(start); m.setDate(m.getDate() + w * 7);
+        const label = el("div", "", m.getMonth() !== lastMonth ? m.toLocaleString("en", { month: "short" }) : "");
+        label.style.width = "16px"; label.style.flex = "none";
+        months.appendChild(label);
+        lastMonth = m.getMonth();
+        for (let d = 0; d < 7; d++) {
+          const day = new Date(start); day.setDate(day.getDate() + w * 7 + d);
+          const cell = el("div", "cell");
+          if (day > today) { cell.style.visibility = "hidden"; cal.appendChild(cell); continue; }
+          const info = perDay[dayKey(day)] || { n: 0, ok: 0 };
+          cell.setAttribute("style", heatStyle(heatLevel(info.n)));
+          cell.dataset.tip = day.toLocaleDateString("en", { weekday: "short", month: "short", day: "numeric" }) +
+            (info.n ? ` — ${info.n} attempt${info.n > 1 ? "s" : ""}, ${info.ok} correct` : " — no practice");
+          cal.appendChild(cell);
+        }
+      }
+      row.appendChild(dows); row.appendChild(cal);
+      scroller.appendChild(months); scroller.appendChild(row);
+      root.appendChild(scroller);
+
+      const legend = el("div", "flex items-center space-x-1 text-[10px] text-neutral-500 mt-2");
+      legend.appendChild(el("span", "", "Less"));
+      const swatches = el("span", "flex space-x-[2px]");
+      [0, 1, 2, 3, 4].forEach(l => { const c = el("div", "cell"); c.setAttribute("style", heatStyle(l)); swatches.appendChild(c); });
+      legend.appendChild(swatches);
+      legend.appendChild(el("span", "", "More"));
+      root.appendChild(legend);
+      return root;
+    }
+
+    // ---------- subjects ----------
+    const subjectMeta = id => SUBJECTS.find(s => s.id === id) || { id, name: id, icon: "fa-solid fa-circle", planned: false };
+    const subjectOfEvent = e => e.subject || subjectOf(e.scenarioId);
+
+    // One card per registered subject: its own heatmap and headline numbers (planned subjects stay muted until used).
+    function renderSubjectCards(events) {
+      const host = $("subject-cards");
+      host.replaceChildren();
+      SUBJECTS.forEach(sub => {
+        const evs = events.filter(e => subjectOfEvent(e) === sub.id);
+        const solved = evs.filter(e => e.type === "solved");
+        const card = el("div", "rounded-lg border border-neutral-800 bg-surface-1 p-4" + (evs.length ? "" : " opacity-60"));
+        const head = el("div", "flex items-center justify-between mb-3");
+        const title = el("div", "flex items-center gap-2 text-sm font-bold text-neutral-100");
+        const icon = el("i", sub.icon + " text-emerald-400"); title.appendChild(icon);
+        title.appendChild(el("span", "", sub.name));
+        if (sub.planned && !evs.length) title.appendChild(el("span", "text-[10px] font-normal px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400", "planned"));
+        head.appendChild(title);
+        if (evs.length) {
+          const days = new Set(evs.map(e => dayKey(new Date(e.ts)))).size;
+          head.appendChild(el("span", "text-[11px] text-neutral-400",
+            `${new Set(solved.map(e => e.scenarioId)).size} solved · ${pct(solved.length, evs.length)}% accuracy · ${days} days`));
+        }
+        card.appendChild(head);
+        card.appendChild(evs.length ? buildHeatmap(evs) : el("p", "text-xs text-neutral-500", "No activity yet."));
+        host.appendChild(card);
       });
     }
 
-    async function showAllUsers() {
-      $("users-section").classList.remove("hidden");
-      const snap = await db.collection("users").get();
-      const body = $("users-body");
-      body.replaceChildren();
-      const users = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
-      users.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-      users.forEach(u => {
-        const d = u.data || {};
-        let solvedCount = 0;
-        try { solvedCount = JSON.parse(d.cmdcraft_completed || "[]").length; } catch (e) { /* ignore */ }
-        body.appendChild(row([u.name || "(no name)", u.email || "", d.cmdcraft_xp || "0", solvedCount, fmt(u.updatedAt)],
-          () => showUser(u.uid, u.name || u.email || u.uid)));
+    let allEvents = [];
+    let activeSubject = "all";
+
+    function renderChips() {
+      const chips = $("chips");
+      chips.replaceChildren();
+      chips.appendChild(el("span", "text-neutral-500 mr-1", "Details for:"));
+      const used = new Set(allEvents.map(subjectOfEvent));
+      const options = [{ id: "all", name: "All subjects" }, ...SUBJECTS.filter(s => used.has(s.id))];
+      options.forEach(o => {
+        const on = o.id === activeSubject;
+        const b = el("button", "px-3 py-1 rounded-full border transition " +
+          (on ? "bg-emerald-500/15 border-emerald-500/50 text-emerald-400" : "border-neutral-700 text-neutral-400 hover:text-neutral-200"), o.name);
+        b.addEventListener("click", () => { activeSubject = o.id; renderDetails(); });
+        chips.appendChild(b);
       });
+    }
+
+    function renderDetails() {
+      const events = activeSubject === "all" ? allEvents : allEvents.filter(e => subjectOfEvent(e) === activeSubject);
+      renderChips();
+      renderStats(events);
+      renderTopics(events);
+      renderPractice(events);
+      renderLog(events);
+    }
+
+    // ---------- accuracy by topic (single series horizontal bars) ----------
+    function renderTopics(events) {
+      const by = {};
+      events.forEach(e => {
+        const t = topicOf(e.scenarioId);
+        (by[t] = by[t] || { n: 0, ok: 0 }).n++;
+        if (e.type === "solved") by[t].ok++;
+      });
+      const rows = Object.entries(by).map(([t, v]) => ({ t, ...v, acc: pct(v.ok, v.n) })).sort((a, b) => a.acc - b.acc || b.n - a.n);
+      const box = $("topics");
+      box.replaceChildren();
+      if (!rows.length) { box.appendChild(el("p", "text-xs text-neutral-500", "No attempts yet.")); return; }
+      rows.forEach(r => {
+        const row = el("div", "flex items-center gap-3 text-xs");
+        row.dataset.tip = `${r.t}: ${r.ok} correct of ${r.n} attempts`;
+        row.appendChild(el("div", "w-40 shrink-0 truncate text-neutral-300", r.t));
+        const track = el("div", "flex-1 h-4 rounded-r bg-neutral-800/60");
+        const fill = el("div", "bar-fill h-4 bg-emerald-500");
+        fill.style.width = Math.max(r.acc, 1) + "%";
+        track.appendChild(fill);
+        row.appendChild(track);
+        row.appendChild(el("div", "w-32 shrink-0 text-right text-neutral-400 whitespace-nowrap", `${r.acc}% · ${r.n} tries`));
+        box.appendChild(row);
+      });
+    }
+
+    // ---------- scenarios that need practice ----------
+    function renderPractice(events) {
+      const by = {};
+      events.forEach(e => {
+        const s = (by[e.scenarioId] = by[e.scenarioId] || { id: e.scenarioId, n: 0, fail: 0, solved: false, wrong: {} });
+        s.n++;
+        if (e.type === "solved") s.solved = true;
+        else { s.fail++; const c = e.command || ""; s.wrong[c] = (s.wrong[c] || 0) + 1; }
+      });
+      const rows = Object.values(by).filter(s => s.fail > 0).sort((a, b) => b.fail - a.fail || a.id.localeCompare(b.id)).slice(0, 10);
+      const body = $("practice-body");
+      body.replaceChildren();
+      if (!rows.length) {
+        const tr = el("tr", "border-t border-neutral-800");
+        const td = el("td", "p-2 text-neutral-500", "Nothing yet. Failed attempts will show up here.");
+        td.colSpan = 5; tr.appendChild(td); body.appendChild(tr);
+        return;
+      }
+      rows.forEach(s => {
+        const top = Object.entries(s.wrong).sort((a, b) => b[1] - a[1])[0];
+        const tr = el("tr", "border-t border-neutral-800");
+        const name = el("td", "p-2");
+        name.appendChild(el("div", "text-neutral-200", (SCEN[s.id] ? SCEN[s.id].title : s.id)));
+        name.appendChild(el("div", "text-[10px] text-neutral-500", s.id + " · " + topicOf(s.id)));
+        tr.appendChild(name);
+        tr.appendChild(el("td", "p-2 text-neutral-300", String(s.fail)));
+        tr.appendChild(el("td", "p-2 text-neutral-300", String(s.n)));
+        const st = el("td", "p-2");
+        st.appendChild(el("span", "px-2 py-0.5 rounded " + (s.solved ? "bg-emerald-500/15 text-emerald-400" : "bg-neutral-800 text-neutral-400"), s.solved ? "Solved" : "Not solved yet"));
+        tr.appendChild(st);
+        const cmd = el("td", "p-2");
+        cmd.appendChild(el("code", "text-neutral-300", top ? top[0] || "(empty)" : "—"));
+        if (top && top[1] > 1) cmd.appendChild(el("span", "text-neutral-500 ml-2", "×" + top[1]));
+        tr.appendChild(cmd);
+        body.appendChild(tr);
+      });
+    }
+
+    // ---------- raw log ----------
+    function renderLog(events) {
+      const body = $("events-body");
+      body.replaceChildren();
+      events.slice(0, LOG_ROWS).forEach(e => {
+        const ok = e.type === "solved";
+        const tr = el("tr", "border-t border-neutral-800");
+        tr.appendChild(el("td", "p-2 whitespace-nowrap", fmtTime(e.ts)));
+        const r = el("td", "p-2");
+        r.appendChild(el("span", "px-2 py-0.5 rounded " + (ok ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"), ok ? "Solved" : "Failed"));
+        tr.appendChild(r);
+        tr.appendChild(el("td", "p-2", (e.scenarioId || "") + (e.title ? " — " + e.title : "")));
+        const c = el("td", "p-2"); c.appendChild(el("code", "text-neutral-300", e.command || "")); tr.appendChild(c);
+        body.appendChild(tr);
+      });
+      $("log-note").textContent = `Showing the latest ${Math.min(events.length, LOG_ROWS)} of ${events.length} attempts` + (events.length >= MAX_EVENTS ? " (analytics cover the latest " + MAX_EVENTS + ")." : ".");
+    }
+
+    async function load(user) {
+      const snap = await db.collection("users").doc(user.uid).collection("events").orderBy("ts", "desc").limit(MAX_EVENTS).get();
+      allEvents = snap.docs.map(d => d.data());
+      $("dash").classList.remove("hidden");
+      $("status").textContent = allEvents.length ? "" : "No activity yet. Solve or fail a scenario while signed in and it will appear here.";
+      $("cal-all").replaceChildren(buildHeatmap(allEvents));
+      renderSubjectCards(allEvents);
+      renderDetails();
     }
 
     $("btn-signin").addEventListener("click", () => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()));
 
     auth.onAuthStateChanged(async user => {
       if (!user) {
+        $("dash").classList.add("hidden");
         $("status").textContent = "Sign in to see your activity.";
         $("btn-signin").classList.remove("hidden");
         $("who").textContent = "";
@@ -145,11 +403,9 @@
       }
       $("btn-signin").classList.add("hidden");
       $("who").textContent = user.email;
-      const isAdmin = user.email === ADMIN_EMAIL;
-      $("status").textContent = isAdmin ? "Admin view — click a user to see their activity." : "";
+      $("status").textContent = "Loading…";
       try {
-        if (isAdmin) await showAllUsers();
-        await showUser(user.uid, "you (" + (user.displayName || user.email) + ")");
+        await load(user);
       } catch (e) {
         $("status").textContent = "Could not load activity: " + e.message;
       }

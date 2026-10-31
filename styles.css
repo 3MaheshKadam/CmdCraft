@@ -74,3 +74,14 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+
+/* A process/row that the last command removed (killed, deleted) */
+.viz-removed {
+  text-decoration: line-through;
+  color: rgb(var(--red-400));
+  animation: vizFade 3.5s ease-out forwards;
+}
+@keyframes vizFade {
+  0%   { opacity: 1; background: rgb(var(--red-500) / 0.18); }
+  100% { opacity: 0.35; background: transparent; }
+}

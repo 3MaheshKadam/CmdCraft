@@ -257,8 +257,8 @@
         <div class="flex items-center justify-between pb-3 border-b border-neutral-800">
           <div class="flex items-center space-x-2">
             <h3 class="font-bold text-sm text-neutral-50 flex items-center gap-2">
-              <i class="fa-solid fa-sitemap text-emerald-400"></i>
-              <span>Live Filesystem Visualizer</span>
+              <i id="viz-icon" class="fa-solid fa-sitemap text-emerald-400"></i>
+              <span id="viz-title">Live Filesystem Visualizer</span>
             </h3>
           </div>
           <span class="text-[11px] font-mono text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
@@ -266,8 +266,8 @@
           </span>
         </div>
 
-        <p class="text-xs text-neutral-400 mt-2 mb-3">
-          Watch folders, permissions (<span class="font-mono text-emerald-400">rwx</span>), and files mutate dynamically as you issue commands.
+        <p id="viz-subtitle" class="text-xs text-neutral-400 mt-2 mb-3">
+          Watch folders, permissions (rwx), and files mutate dynamically as you issue commands.
         </p>
 
         <!-- Filesystem Interactive Tree Container -->
@@ -276,7 +276,7 @@
         </div>
 
         <!-- Legend / Permissions explainer -->
-        <div class="mt-3 grid grid-cols-3 gap-2 text-[10px] font-mono text-neutral-400 border-t border-neutral-800/80 pt-2.5">
+        <div id="viz-legend" class="mt-3 grid grid-cols-3 gap-2 text-[10px] font-mono text-neutral-400 border-t border-neutral-800/80 pt-2.5">
           <div class="flex items-center space-x-1.5">
             <span class="w-2 h-2 rounded bg-amber-400"></span>
             <span>Folder</span>
@@ -352,11 +352,14 @@
   </div>
 
   <!-- Scripts -->
+  <script src="subjects.js"></script>
   <script src="cloud-config.js"></script>
   <script src="cloud.js"></script>
+  <script src="system.js"></script>
   <script src="shell.js"></script>
   <script src="scenarios.js"></script>
   <script src="goals.js"></script>
+  <script src="viz.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

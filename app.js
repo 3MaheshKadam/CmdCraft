@@ -298,6 +298,9 @@ class CmdCraftApp {
           this.historyIndex = -1;
           this.dom.termInput.value = "";
         }
+      } else if (e.ctrlKey && e.key === "c" && this.followTimer) {
+        e.preventDefault();
+        this.stopFollow(true);
       } else if (e.ctrlKey && e.key === "l") {
         e.preventDefault();
         this.clearTerminal();
@@ -479,6 +482,7 @@ class CmdCraftApp {
     this.saveSessionState();
 
     // Every scenario starts with a clean terminal
+    this.stopFollow(false);
     this.dom.termOutput.innerHTML = "";
 
     // Badges & Meta
@@ -518,23 +522,89 @@ class CmdCraftApp {
       this.dom.evalStatusPill.className = "text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
       this.setNextEnabled(true);
       this.renderSolvedExplanation();
-      if (this.currentScenario.updatedFs) {
+      if (this.vizKind() !== "fs") {
+        this.renderLive();
+      } else if (this.currentScenario.updatedFs) {
         this.renderFilesystem(this.currentScenario.updatedFs);
+        this.setVizMeta("fs");
       } else {
         this.renderFilesystem(this.currentScenario.initialFs);
+        this.setVizMeta("fs");
       }
       this.appendTerminalLine(`\n<span class="text-emerald-400 font-bold">=== Loaded Scenario: ${this.currentScenario.title} ===</span>\n<span class="text-emerald-300/80 text-xs font-mono">✔ Mastered! Press Enter or 'Next Scenario ➔' to advance, or re-run to practice.</span>\n<span class="text-neutral-400">${this.currentScenario.desc}</span>`);
     } else {
       this.dom.evalStatusPill.textContent = "Awaiting command...";
       this.dom.evalStatusPill.className = "text-[11px] font-mono px-2 py-0.5 rounded bg-neutral-800 text-neutral-400";
       this.setNextEnabled(false);
-      this.renderFilesystem(this.shell ? this.shell.toTree() : this.currentScenario.initialFs);
+      this.renderLive();
       this.renderInitialExplanation();
       this.appendTerminalLine(`\n<span class="text-emerald-400 font-bold">=== Loaded Scenario: ${this.currentScenario.title} ===</span>\n<span class="text-neutral-400">${this.currentScenario.desc}</span>`);
     }
 
     this.dom.termInput.value = "";
     this.dom.termInput.focus();
+  }
+
+  // ---- live panel: file tree for filesystem questions, otherwise the panel the scenario asks for ----
+  vizKind() {
+    const kind = (this.shellSetup && this.shellSetup.viz) || "fs";
+    return kind !== "fs" && this.shell && this.shell.sys && window.VizPanels && window.VizPanels.has(kind) ? kind : "fs";
+  }
+
+  setVizMeta(kind) {
+    const meta = (window.VizPanels && window.VizPanels.META[kind]) || null;
+    if (!meta) return;
+    const icon = document.getElementById("viz-icon");
+    const title = document.getElementById("viz-title");
+    const sub = document.getElementById("viz-subtitle");
+    const legend = document.getElementById("viz-legend");
+    if (icon) icon.className = "fa-solid " + meta.icon + " text-emerald-400";
+    if (title) title.textContent = meta.title;
+    if (sub) sub.textContent = meta.sub;
+    if (legend) {
+      legend.replaceChildren();
+      legend.style.gridTemplateColumns = "repeat(" + meta.legend.length + ", minmax(0, 1fr))";
+      meta.legend.forEach(([cls, label]) => {
+        const item = document.createElement("div");
+        item.className = "flex items-center space-x-1.5";
+        const dot = document.createElement("span");
+        dot.className = "w-2 h-2 rounded " + cls;
+        const text = document.createElement("span");
+        text.textContent = label;
+        item.appendChild(dot); item.appendChild(text);
+        legend.appendChild(item);
+      });
+    }
+  }
+
+  renderLive() {
+    const kind = this.vizKind();
+    this.setVizMeta(kind);
+    if (kind === "fs") {
+      this.renderFilesystem(this.shell ? this.shell.toTree() : this.currentScenario.initialFs);
+    } else {
+      window.VizPanels.render(kind, this.dom.visualFs, this.shell);
+    }
+  }
+
+  // ---- live follow (tail -f / journalctl -f): new lines arrive in the terminal and the panel until Ctrl+C ----
+  startFollow(follow) {
+    this.stopFollow(false);
+    let ticks = 0;
+    this.followTimer = setInterval(() => {
+      ticks++;
+      const line = follow.next();
+      if (line) this.appendTerminalLine(`<span class="text-neutral-300 font-mono">${this.escapeHtml(line)}</span>`);
+      this.renderLive();
+      if (ticks >= 12) this.stopFollow(true, "[sandbox: stopped following after 30 seconds]");
+    }, 2500);
+  }
+
+  stopFollow(print, message) {
+    if (!this.followTimer) return;
+    clearInterval(this.followTimer);
+    this.followTimer = null;
+    if (print) this.appendTerminalLine(`<span class="text-neutral-500">${message || "^C"}</span>`);
   }
 
   // Keeps the right-panel Next button and the terminal's Next button (handy in full screen) in sync.
@@ -676,6 +746,8 @@ class CmdCraftApp {
     this.history.push(rawCmd);
     this.historyIndex = -1;
 
+    this.stopFollow(false);
+
     // Display user command in terminal
     this.appendTerminalLine(`<span class="text-emerald-400 font-bold">${this.escapeHtml(this.promptText())}</span> <span class="text-neutral-50">${this.escapeHtml(rawCmd)}</span>`);
     this.dom.termInput.value = "";
@@ -698,8 +770,9 @@ class CmdCraftApp {
       if (shellResult.handled) {
         if (shellResult.out) this.appendTerminalLine(`<span class="text-neutral-300 font-mono">${this.escapeHtml(shellResult.out.replace(/\n$/, ""))}</span>`);
         if (shellResult.err) this.appendTerminalLine(`<span class="text-red-400 font-mono">${this.escapeHtml(shellResult.err.replace(/\n$/, ""))}</span>`);
-        this.renderFilesystem(this.shell.toTree());
+        this.renderLive();
         this.updatePrompt();
+        if (this.shell.follow) this.startFollow(this.shell.follow);
       }
     }
     const shellHandled = !!(shellResult && shellResult.handled);
@@ -715,7 +788,8 @@ class CmdCraftApp {
       }
     }
 
-    const isMatch = goalMet || this.currentScenario.validCommands.some(regex => regex.test(normalized));
+    const goalDriven = shellHandled && !!this.shellSetup && !!(this.shellSetup.goal || this.shellSetup.ran);
+    const isMatch = goalDriven ? goalMet : (goalMet || this.currentScenario.validCommands.some(regex => regex.test(normalized)));
 
     // Harmless exploration (ls, cat, a typo that changed nothing...) isn't an attempt: no penalty, no log entry.
     if (!isMatch && shellHandled && !stateChanged && !shellResult.err) {
@@ -729,6 +803,7 @@ class CmdCraftApp {
         scenarioId: this.currentScenario.id,
         title: this.currentScenario.title,
         command: normalized,
+        subject: window.subjectOf ? window.subjectOf(this.currentScenario) : "linux",
         mode: this.currentMode,
         firstSolve
       });
