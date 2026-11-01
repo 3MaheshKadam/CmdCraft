@@ -40,17 +40,34 @@
     const sys = sh.sys;
     const wrap = el("div", "text-[11px]");
     const rows = [...sys.processes].sort((a, b) => b.cpu - a.cpu);
+    const compact = host.clientWidth > 0 && host.clientWidth < 440;
+    const cols = compact ? "44px 1fr 44px" : "44px 62px 1fr 38px 28px 1.4fr";
     const head = el("div", "grid gap-2 px-2 pb-1 text-neutral-500 border-b border-neutral-800");
-    head.style.gridTemplateColumns = "44px 62px 1fr 38px 28px 1.4fr";
-    ["PID", "USER", "CPU %", "MEM", "ST", "COMMAND"].forEach(t => head.appendChild(el("div", "", t)));
+    head.style.gridTemplateColumns = cols;
+    (compact ? ["PID", "COMMAND", "CPU %"] : ["PID", "USER", "CPU %", "MEM", "ST", "COMMAND"]).forEach(t => head.appendChild(el("div", "", t)));
     wrap.appendChild(head);
 
     const addRow = (p, removed) => {
       const hot = sys.highlight.has(p.pid) && !removed;
       const row = el("div", "grid gap-2 items-center px-2 py-1 border-l-2 " + (hot ? "border-emerald-400 bg-emerald-500/10" : "border-transparent") +
         (removed ? " viz-removed" : changedClass(sys, "proc:" + p.pid)));
-      row.style.gridTemplateColumns = "44px 62px 1fr 38px 28px 1.4fr";
+      row.style.gridTemplateColumns = cols;
       row.appendChild(el("div", "text-neutral-300", String(p.pid)));
+      if (compact) {
+        const c = el("div", "min-w-0");
+        c.appendChild(el("div", "truncate text-neutral-200", p.cmd));
+        const t = el("div", "mt-1 h-1.5 rounded bg-neutral-800");
+        const f = el("div", "h-1.5 rounded " + (p.cpu >= 50 ? "bg-amber-400" : "bg-emerald-400"));
+        f.style.width = Math.min(100, Math.max(p.cpu, 0.5)) + "%";
+        t.appendChild(f); c.appendChild(t);
+        row.appendChild(c);
+        row.appendChild(el("div", "text-right text-neutral-300", p.cpu.toFixed(1)));
+        if (!removed && sys.signals.some(s => s.pid === p.pid && s.survived)) {
+          wrap.appendChild(row);
+          wrap.appendChild(el("div", "-mt-0.5 pl-2 text-[10px] text-amber-400", "↳ ignored SIGTERM. Only SIGKILL (-9) cannot be ignored."));
+        } else wrap.appendChild(row);
+        return;
+      }
       row.appendChild(el("div", "truncate text-neutral-400", p.user));
       const bar = el("div", "flex items-center gap-1.5");
       const track = el("div", "flex-1 h-1.5 rounded bg-neutral-800");

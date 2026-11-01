@@ -86,7 +86,10 @@
             <tbody id="events-body"></tbody>
           </table>
         </div>
-        <p id="log-note" class="text-[11px] text-neutral-500 mt-2"></p>
+        <div class="flex items-center justify-between gap-3 mt-2">
+          <p id="log-note" class="text-[11px] text-neutral-500"></p>
+          <button id="log-more" class="hidden shrink-0 px-3 py-1 rounded-lg border border-neutral-700 text-xs text-neutral-300 hover:text-neutral-100">Show more</button>
+        </div>
       </section>
     </div>
   </main>
@@ -101,7 +104,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script>
     const MAX_EVENTS = 2000;   // analytics window
-    const LOG_ROWS = 100;      // rows shown in the raw log
+    let logRows = 25;          // rows shown in the raw log (the button adds more)
     const WEEKS = 15;
 
     firebase.initializeApp(window.CMDCRAFT_CONFIG.firebase);
@@ -314,13 +317,13 @@
       rows.forEach(r => {
         const row = el("div", "flex items-center gap-3 text-xs");
         row.dataset.tip = `${r.t}: ${r.ok} correct of ${r.n} attempts`;
-        row.appendChild(el("div", "w-40 shrink-0 truncate text-neutral-300", r.t));
+        row.appendChild(el("div", "w-24 sm:w-40 shrink-0 truncate text-neutral-300", r.t));
         const track = el("div", "flex-1 h-4 rounded-r bg-neutral-800/60");
         const fill = el("div", "bar-fill h-4 bg-emerald-500");
         fill.style.width = Math.max(r.acc, 1) + "%";
         track.appendChild(fill);
         row.appendChild(track);
-        row.appendChild(el("div", "w-32 shrink-0 text-right text-neutral-400 whitespace-nowrap", `${r.acc}% · ${r.n} tries`));
+        row.appendChild(el("div", "w-24 sm:w-32 shrink-0 text-right text-[10px] sm:text-xs text-neutral-400 whitespace-nowrap", `${r.acc}% · ${r.n} tries`));
         box.appendChild(row);
       });
     }
@@ -367,10 +370,11 @@
     function renderLog(events) {
       const body = $("events-body");
       body.replaceChildren();
-      events.slice(0, LOG_ROWS).forEach(e => {
+      events.slice(0, logRows).forEach(e => {
         const ok = e.type === "solved";
         const tr = el("tr", "border-t border-neutral-800");
         tr.appendChild(el("td", "p-2 whitespace-nowrap", fmtTime(e.ts)));
+        tr.classList.add("whitespace-nowrap");
         const r = el("td", "p-2");
         r.appendChild(el("span", "px-2 py-0.5 rounded " + (ok ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"), ok ? "Solved" : "Failed"));
         tr.appendChild(r);
@@ -378,7 +382,10 @@
         const c = el("td", "p-2"); c.appendChild(el("code", "text-neutral-300", e.command || "")); tr.appendChild(c);
         body.appendChild(tr);
       });
-      $("log-note").textContent = `Showing the latest ${Math.min(events.length, LOG_ROWS)} of ${events.length} attempts` + (events.length >= MAX_EVENTS ? " (analytics cover the latest " + MAX_EVENTS + ")." : ".");
+      $("log-note").textContent = `Showing the latest ${Math.min(events.length, logRows)} of ${events.length} attempts` + (events.length >= MAX_EVENTS ? " (analytics cover the latest " + MAX_EVENTS + ")." : ".");
+      const more = $("log-more");
+      more.classList.toggle("hidden", events.length <= logRows);
+      more.onclick = () => { logRows += 50; renderLog(events); };
     }
 
     async function load(user) {
