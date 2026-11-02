@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Builds scenarios.js for CmdCraft based on the 25-module DevOps curriculum
-and 10 Incident Drills in 'linux chat'.
+and 10 Incident Drills in docs/'linux chat'. Writes ../content/scenarios.js.
 """
 
 def generate_scenarios_js():
@@ -2806,7 +2806,9 @@ const SYLLABUS_INCIDENTS = [
 ];
 """
 
-with open("scenarios.js", "w", encoding="utf-8") as f:
+import os
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "content", "scenarios.js")
+with open(OUT, "w", encoding="utf-8") as f:
     f.write(generate_scenarios_js())
 
 print("scenarios.js generated successfully!")

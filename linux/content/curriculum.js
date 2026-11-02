@@ -114,7 +114,7 @@
     };
     SCENARIOS.push(scenario);
     const setup = {};
-    ["viz", "focus", "files", "nodes", "system", "cwd", "oldpwd", "enforce", "env", "focusPort", "expectedIp"].forEach(k => { if (opts[k] !== undefined) setup[k] = opts[k]; });
+    ["viz", "focus", "files", "nodes", "system", "cwd", "oldpwd", "enforce", "env", "focusPort", "expectedIp", "keys"].forEach(k => { if (opts[k] !== undefined) setup[k] = opts[k]; });
     setup.goal = opts.goal || autoGoal(main, opts);
     root.SCENARIO_SETUP[id] = setup;
     drillCount++;

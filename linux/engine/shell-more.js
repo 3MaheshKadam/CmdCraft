@@ -434,7 +434,7 @@
   };
   P.cmd_bash = function (args) {
     const ci = args.indexOf("-c");
-    if (ci !== -1) { const r = this.runChild(args[ci + 1] || "", ["bash", ...args.slice(ci + 2)]); return { out: r.out, err: r.err, code: r.code }; }
+    if (ci !== -1) { const r = this.runChild(args[ci + 1] || "", [args[ci + 2] || "bash", ...args.slice(ci + 3)]); return { out: r.out, err: r.err, code: r.code }; }
     const file = args.filter(a => !a.startsWith("-"))[0];
     if (!file) return { out: "", code: 0 };
     return this.runScriptFile(file, args.slice(args.indexOf(file) + 1));

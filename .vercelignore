@@ -1,5 +1,5 @@
-linux chat
-build_scenarios.py
+linux/docs
+linux/tools
 END_GOAL.md
 README.md
 firestore.rules

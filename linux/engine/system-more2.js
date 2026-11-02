@@ -395,6 +395,9 @@
       const rows = cfg.split("\n").map(l => l.trim()).filter(l => l && !l.startsWith("#"));
       const bad = rows.find(l => !/^[A-Za-z][A-Za-z0-9]*\s+\S/.test(l));
       if (bad) return { err: "/etc/ssh/sshd_config: line: Bad configuration option: " + bad + "\n/etc/ssh/sshd_config: terminating, 1 bad configuration options\n", code: 255 };
+      const KEYWORDS = new Set("port listenaddress addressfamily protocol hostkey permitrootlogin passwordauthentication pubkeyauthentication permitemptypasswords x11forwarding x11displayoffset maxauthtries allowusers allowgroups denyusers denygroups loglevel syslogfacility logingracetime challengeresponseauthentication kbdinteractiveauthentication usepam printmotd printlastlog tcpkeepalive clientaliveinterval clientalivecountmax subsystem acceptenv authorizedkeysfile banner match maxsessions maxstartups ciphers macs kexalgorithms usedns gatewayports allowtcpforwarding allowagentforwarding permittunnel permittty strictmodes ignorerhosts ignoreuserknownhosts hostbasedauthentication permituserenvironment compression authenticationmethods chrootdirectory forcecommand pidfile include authorizedprincipalsfile rekeylimit gssapiauthentication hostkeyalgorithms pubkeyacceptedalgorithms".split(" "));
+      const unknown = rows.find(l => !KEYWORDS.has(l.split(/\s+/)[0].toLowerCase()));
+      if (unknown) { const word = unknown.split(/\s+/)[0]; return { err: "/etc/ssh/sshd_config: line " + (cfg.split("\n").findIndex(l => l.trim().startsWith(word)) + 1) + ": Bad configuration option: " + word + "\n/etc/ssh/sshd_config: terminating, 1 bad configuration options\n", code: 255 }; }
       if (flags.has("T")) {
         const cur = {}; rows.forEach(l => { const m = /^(\S+)\s+(.*)$/.exec(l); if (m) cur[m[1].toLowerCase()] = m[2]; });
         const defaults = { port: "22", permitrootlogin: "without-password", passwordauthentication: "yes", pubkeyauthentication: "yes", x11forwarding: "no", maxauthtries: "6" };

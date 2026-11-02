@@ -149,6 +149,7 @@
       this.root = { name: "/", type: "dir", mode: 0o755, owner: "root", group: "root", children: new Map(), mtime: nowStamp() };
       this.cwd = "/";
       this.mkdirp(HOME);   // the user's home always exists, so cd ~ works wherever a scenario starts
+      this.mkdirp("/tmp");   // scripts and mktemp-style drills need it
       this.oldpwd = null;
       this.commandLog = [];
       this.lastSig = null;
@@ -243,6 +244,7 @@
       if (spec.mode !== undefined) n.mode = spec.mode;
       if (spec.content !== undefined && n.type === "file" && !n.sizeDeclared) n.size = spec.content.length;
       if (spec.size) { n.size = parseSize(spec.size); n.sizeDeclared = true; }
+      if (spec.swapReady) n.swapReady = true;
       if (spec.archive) {
         n.archive = { z: !!spec.archive.z, zip: !!spec.archive.zip, entries: spec.archive.entries.map(e => ({ path: e.path, isDir: !!e.isDir, node: e.isDir ? null : { content: e.content === undefined ? null : e.content, size: parseSize(e.size) || (e.content || "").length, mode: 0o644, owner: DEFAULT_OWNER, group: DEFAULT_GROUP } })) };
       }
@@ -344,7 +346,7 @@
       Object.entries(this.vars).forEach(([k, v]) => { o[k] = v.value; });
       o.PWD = this.cwd;
       o["?"] = String(this.lastCode || 0);
-      o["$"] = "2300";
+      o["$"] = "2300"; o.RANDOM = String(Math.floor(Math.random() * 32768)); o.LINENO = "1";
       this.positional.forEach((v, i) => { o[String(i)] = v; });
       o["#"] = String(Math.max(0, this.positional.length - 1));
       o["@"] = this.positional.slice(1).join(" ");
@@ -368,6 +370,13 @@
           out += arith ? String(this.arith(line.slice(i + 3, j - 1))) : this.captureCmd(line.slice(i + 2, j));
           i = j + 1; continue;
         }
+        if (c === "$" && line[i + 1] === "{") {
+          let d = 0, j = i + 1;
+          for (; j < line.length; j++) { if (line[j] === "{") d++; else if (line[j] === "}") { d--; if (d === 0) break; } }
+          const inner = j < line.length ? line.slice(i + 2, j) : null;
+          const val = inner === null ? null : this.paramExpand(inner);
+          if (val !== null) { out += val; i = j + 1; continue; }
+        }
         if (c === "`") {
           const j = line.indexOf("`", i + 1);
           if (j < 0) throw new Error("unterminated backtick");
@@ -377,6 +386,32 @@
         out += c; i++;
       }
       return out;
+    }
+
+    // ${#v} ${v%pat} ${v%%pat} ${v#pat} ${v##pat} ${v/a/b} ${v//a/b} ${v^^} ${v,,} ${v:off:len}; null = not one of these (the tokenizer handles the rest)
+    paramExpand(inner) {
+      const g2r = p => new RegExp("^" + p.replace(/[.+^${}()|\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".") + "$");
+      const val = n => (this.vars[n] ? this.vars[n].value : (n === "RANDOM" ? String(Math.floor(Math.random() * 32768)) : ""));
+      let m = /^#([A-Za-z_]\w*)$/.exec(inner);
+      if (m) return String(val(m[1]).length);
+      m = /^([A-Za-z_]\w*)(%%|%|##|#|\/\/|\/|\^\^|,,|\^|,|:)([\s\S]*)$/.exec(inner);
+      if (!m) return null;
+      const v = val(m[1]), op = m[2], arg = m[3];
+      if (op === ":") { if (/^[-=+?]/.test(arg)) return null; const mm = /^\s*(-?\d+)(?::(-?\d+))?\s*$/.exec(arg); if (!mm) return null; const off = +mm[1] < 0 ? Math.max(0, v.length + +mm[1]) : +mm[1]; return mm[2] === undefined ? v.slice(off) : v.slice(off, +mm[2] < 0 ? v.length + +mm[2] : off + +mm[2]); }
+      if (op === "^^") return v.toUpperCase();
+      if (op === ",,") return v.toLowerCase();
+      if (op === "^") return v.charAt(0).toUpperCase() + v.slice(1);
+      if (op === ",") return v.charAt(0).toLowerCase() + v.slice(1);
+      if (op === "/" || op === "//") {
+        const k = arg.indexOf("/"); const pat = k < 0 ? arg : arg.slice(0, k), rep = k < 0 ? "" : arg.slice(k + 1);
+        const re = new RegExp(pat.replace(/[.+^${}()|\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, "."), op === "//" ? "g" : "");
+        return v.replace(re, () => rep);
+      }
+      const re = g2r(arg);
+      if (op === "#" || op === "##") { const order = op === "#" ? [...Array(v.length + 1).keys()] : [...Array(v.length + 1).keys()].reverse(); for (const k of order) if (re.test(v.slice(0, k))) return v.slice(k); return v; }
+      const order = op === "%" ? [...Array(v.length + 1).keys()].reverse() : [...Array(v.length + 1).keys()];
+      for (const k of order) if (re.test(v.slice(k))) return v.slice(0, k);
+      return v;
     }
 
     captureCmd(inner) {
@@ -392,6 +427,7 @@
     // small arithmetic evaluator for $(( )) and (( )): + - * / % ** parentheses, comparisons, && ||
     arith(expr) {
       const env = this.envObject();
+      expr = expr.replace(/\$\{?(\d+|[#?])\}?/g, (m, n) => env[n] || "0");
       const src = expr.replace(/\$?([A-Za-z_][A-Za-z0-9_]*)/g, (m, n) => (n in env && /^-?\d+$/.test(env[n]) ? env[n] : "0"));
       const toks = src.match(/\d+|\*\*|<=|>=|==|!=|&&|\|\||[-+*\/%()<>!]/g) || [];
       let pos = 0;
@@ -491,7 +527,7 @@
           if (!words.length) { if (!toks.length) return { handled: false }; continue; }   // pure assignment
           const name = words[0] === "sudo" && !(words[1] || "").startsWith("-") ? words[1] : words[0];
           if (!name) return { handled: false };
-          if (!KNOWN.has(name) && !(this.sys && this.sys.handles(name)) && !name.includes("/")) return { handled: false };
+          if (!KNOWN.has(name) && !(this.sys && this.sys.handles(name)) && !(this.functions && this.functions[name]) && !name.includes("/")) return { handled: false };
           if (name === "df" && !(this.sys && this.sys.handles("df")) && words.some(w => w.startsWith("-") && !/^-[hT]*$/.test(w))) return { handled: false };
           if (!this.supported(name, words.slice(words.indexOf(name) + 1))) return { handled: false };
         }
@@ -541,7 +577,7 @@
           out += "[" + id + "] " + job.pid + "\n";
           this.lastCode = 0; prev = 0;
         }
-        if (exiting !== null) break;
+        if (exiting !== null || this.ctl) break;
       }
 
       if (this.depth === 1 && this.sys) {
@@ -647,9 +683,11 @@
         if (!n || n.type !== "file") { restore.forEach(([n2, old]) => { if (old) this.vars[n2] = old; else delete this.vars[n2]; }); return { out: "", err: "bash: " + inRedir.file + ": No such file or directory\n", code: 1 }; }
         stdin = n.content === null ? "" : n.content;
       }
+      const userFn = this.functions && this.functions[name];
       const hook = VirtualShell.intercept && VirtualShell.intercept[name];
-      const pre = hook ? hook.call(this, args, flags, stdin) : null;
-      if (pre) res = pre;
+      const pre = hook && !userFn ? hook.call(this, args, flags, stdin) : null;
+      if (userFn) res = this.callFunction(name, args, stdin);
+      else if (pre) res = pre;
       else if (name === "id" && !(this.sys && this.sys.handles("id"))) res = { out: this.asRoot ? "uid=0(root) gid=0(root) groups=0(root)\n" : "uid=1000(ubuntu) gid=1000(ubuntu) groups=1000(ubuntu)\n" };
       else if (this.sys && this.sys.handles(name)) res = this.sys.command(name).call(this.sys, args, flags, stdin, this);
       else if (fn) res = fn.call(this, args, flags, stdin);

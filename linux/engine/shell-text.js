@@ -426,7 +426,23 @@
     return out;
   }
   P.formatPrintf = formatPrintf;
-  P.cmd_printf = function (args) { if (!args.length) return { err: "printf: usage: printf format [arguments]\n", code: 2 }; return { out: formatPrintf(args[0], args.slice(1)) }; };
+  // like bash, the format is reused until every argument has been consumed
+  P.cmd_printf = function (args) {
+    if (!args.length) return { err: "printf: usage: printf format [arguments]\n", code: 2 };
+    const fmt = args[0], vals = args.slice(1);
+    const per = (unesc(fmt).replace(/%%/g, "").match(/%-?\d*(?:\.\d+)?[sdifcxoeg]/g) || []).length;
+    if (!per || vals.length <= per) return { out: formatPrintf(fmt, vals) };
+    let out = ""; for (let i = 0; i < vals.length; i += per) out += formatPrintf(fmt, vals.slice(i, i + per));
+    return { out };
+  };
+  P.cmd_seq = function (args) {
+    const n = args.filter(a => !a.startsWith("-")).map(Number);
+    if (!n.length || n.some(isNaN)) return { err: "seq: invalid floating point argument: '" + (args[0] || "") + "'\n", code: 1 };
+    const [a, step, b] = n.length === 1 ? [1, 1, n[0]] : n.length === 2 ? [n[0], 1, n[1]] : [n[0], n[1], n[2]];
+    if (!step) return { err: "seq: invalid Zero increment value: '0'\n", code: 1 };
+    let out = ""; for (let v = a; step > 0 ? v <= b : v >= b; v += step) { out += v + "\n"; if (out.length > 200000) break; }
+    return { out };
+  };
 
   P.cmd_xargs = function (args, flags, stdin) {
     let perCall = null, repl = null; const cmd = [];

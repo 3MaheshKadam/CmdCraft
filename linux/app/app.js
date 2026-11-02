@@ -786,8 +786,9 @@ class CmdCraftApp {
     // Run on the virtual shell (if this scenario has one) so output and visualizer reflect real state.
     let shellResult = null;
     let stateChanged = false;
+    let before = null;
     if (this.shell) {
-      const before = this.shell.stateKey();
+      before = this.shell.stateKey();
       shellResult = this.shell.exec(normalized);
       stateChanged = shellResult.handled && this.shell.stateKey() !== before;
       if (shellResult.handled) {
@@ -798,6 +799,22 @@ class CmdCraftApp {
         if (this.shell.follow) this.startFollow(this.shell.follow);
       }
     }
+    // vim / nano / crontab -e: the editor opens over the terminal and the mission is judged when it closes
+    if (this.shell && this.shell.pendingEditor && shellResult && shellResult.handled && window.EditorUI) {
+      const panel = document.getElementById("terminal-panel");
+      if (getComputedStyle(panel).position === "static") panel.style.position = "relative";
+      window.EditorUI.open(this.shell, panel, ed => {
+        if (ed && ed.written) this.appendTerminalLine(`<span class="text-neutral-500 font-mono text-xs">${this.escapeHtml((ed.kind === "vim" ? "vim" : "nano") + ": " + (ed.path || "buffer") + " saved")}</span>`);
+        this.renderLive();
+        this.afterShell(cmd, normalized, shellResult, this.shell.stateKey() !== before);
+        this.dom.termInput.focus();
+      });
+      return;
+    }
+    this.afterShell(cmd, normalized, shellResult, stateChanged);
+  }
+
+  afterShell(cmd, normalized, shellResult, stateChanged) {
     const shellHandled = !!(shellResult && shellResult.handled);
 
     let goalMet = false;

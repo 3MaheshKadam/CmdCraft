@@ -461,7 +461,15 @@
         return { out: HEADER + "\n" + this.cron.join("\n") + "\n" };
       }
       if (a === "-r") { this.cron = []; return { out: "" }; }
-      if (a === "-e") { this.cronEdited = true; return { out: "[sandbox: crontab -e opens your editor on the crontab. In scripts use: ( crontab -l ; echo 'schedule command' ) | crontab -]\n" }; }
+      if (a === "-e") {
+        this.cronEdited = true;
+        if (!sh || typeof sh.openEditorRequest !== "function") return { out: "[sandbox: crontab -e opens your editor on the crontab. In scripts use: ( crontab -l ; echo 'schedule command' ) | crontab -]\n" };
+        const text = this.cron.length ? HEADER + "\n" + this.cron.join("\n") + "\n" : "# Edit this file to introduce tasks to be run by cron.\n#\n" + HEADER + "\n";
+        const self = this;
+        sh.pendingEditor = { kind: "nano", path: "/tmp/crontab.Xk9aQb/crontab", abs: "/tmp/crontab.Xk9aQb/crontab", text, isNew: false, readonly: false, virtual: true, crontab: true,
+          onSave: t => { const rows = t.replace(/\n$/, "").split("\n").filter(l => l.trim() && l.trim() !== HEADER && !/^# Edit this file/.test(l) && l.trim() !== "#"); const bad = self.validateCron(rows); if (bad) return "crontab: line " + bad.line + ": " + bad.msg; self.cron = rows; return ""; } };
+        return { out: "" };
+      }
       let text;
       if (a === "-") text = stdin;
       else { const n = sh && sh.lookup(sh.abs(a), true); if (!n || n.type !== "file") return { err: "crontab: " + a + ": No such file or directory\n", code: 1 }; text = n.content || ""; }

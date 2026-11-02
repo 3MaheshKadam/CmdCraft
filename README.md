@@ -70,3 +70,38 @@ No build step or server needed. To launch:
   ```powershell
   Start-Process .\index.html
   ```
+
+## Coverage (all 29 syllabus modules)
+
+- **Modules 1-27**: 400+ drills, each judged by the state of a simulated Linux system (virtual filesystem, processes, services, packages, disks, firewall, SSH).
+- **Vim and Nano (20-21)**: real key-driven editors open over the terminal; the mission is judged by the saved file.
+- **Bash scripting (25)**: a script interpreter (if/for/while/case/functions/heredocs/set -euo/trap) runs what you write.
+- **Disk administration (17B)**: partition, mkfs, mount, fstab, swap, fsck, grow.
+- **Incident simulator (28)**: 23 production incidents.
+- **Interview prep (29)**: `interview.html`, 100 questions with explanations and a weak-spots mode.
+
+Test files live outside the repo while developing; `editors.js`, `shell-*.js`, `system-*.js` have no build step.
+
+## Project structure
+
+```
+index.html            subject hub (add a card per subject)
+activity.html         cross-subject activity dashboard
+shared/               used by every subject: theme.js, styles.css, cloud.js, cloud-config.js, subjects.js
+linux/
+  index.html          the Linux practice app      interview.html   Linux interview prep
+  app/                UI: app.js, editor-ui.js, feedback.js (command explainer), viz*.js (live panels)
+  engine/             the simulated machine: system*.js (processes, services, disks, packages...),
+                      shell*.js (virtual shell + script interpreter), editors.js (Vim/Nano)
+  content/            scenarios.js, goals.js, curriculum*.js, drills-*.js, incidents-more.js, interview-data.js
+  tools/              build_scenarios.py (writes content/scenarios.js)
+  docs/               source notes ("linux chat")
+```
+
+### Adding a subject (SQL, Python, React, AI...)
+1. Create `<subject>/` with the same shape: `index.html`, `app/`, `engine/` (whatever simulates that subject), `content/` (scenarios and drills).
+2. Load shared files with `../shared/...` and keep subject scripts relative.
+3. Add the subject to `shared/subjects.js` (so Activity can group it) and to the `SUBJECTS` list in the root `index.html`.
+4. Add its content scripts to `activity.html` so the dashboard can show titles.
+
+`linux/app/app.js` is still Linux-coupled; when a second subject needs the same game loop, move the generic parts into `shared/` first.
