@@ -158,9 +158,14 @@
             <span id="scenario-id" class="text-xs font-mono text-neutral-500">#LNX-01</span>
           </div>
 
-          <div class="flex items-center space-x-1 text-xs text-emerald-400 font-mono font-bold">
-            <i class="fa-solid fa-star text-amber-400 text-xs"></i>
-            <span id="scenario-xp-reward">+50 XP</span>
+          <div class="flex items-center gap-3">
+            <button id="btn-copy-question" type="button" class="flex items-center gap-1.5 px-2 py-1 rounded-md border border-neutral-700 text-[11px] text-neutral-400 hover:text-neutral-100 hover:border-neutral-500 transition" title="Copy this question as text">
+              <i class="fa-regular fa-copy"></i><span id="copy-question-label">Copy</span>
+            </button>
+            <div class="flex items-center space-x-1 text-xs text-emerald-400 font-mono font-bold">
+              <i class="fa-solid fa-star text-amber-400 text-xs"></i>
+              <span id="scenario-xp-reward">+50 XP</span>
+            </div>
           </div>
         </div>
 
@@ -217,7 +222,7 @@
         </div>
 
         <!-- Terminal Output Area -->
-        <div id="terminal-output" class="p-4 overflow-y-auto flex-1 space-y-2 text-xs md:text-sm text-neutral-200 cursor-text break-words min-w-0" onclick="document.getElementById('terminal-input').focus()">
+        <div id="terminal-output" class="p-4 overflow-y-auto flex-1 space-y-2 text-xs md:text-sm text-neutral-200 cursor-text break-words min-w-0">
           <div class="text-neutral-500 italic">
             CmdCraft Linux Interactive Sandbox initialized. Click anywhere in this terminal to type and hit <kbd class="px-1 py-0.5 bg-neutral-800 rounded text-neutral-300 text-[11px]">Enter</kbd>.
           </div>
@@ -271,7 +276,7 @@
         </p>
 
         <!-- Filesystem Interactive Tree Container -->
-        <div id="visual-fs-container" class="bg-surface-0 border border-neutral-800 rounded-lg p-3 font-mono text-xs overflow-y-auto overflow-x-auto max-h-[300px] scrollbar-thin">
+        <div id="visual-fs-container" class="bg-surface-0 border border-neutral-800 rounded-lg p-3 font-mono text-xs overflow-y-auto overflow-x-auto max-h-[420px] scrollbar-thin">
           <!-- Dynamically populated tree -->
         </div>
 
@@ -356,10 +361,12 @@
   <script src="cloud-config.js"></script>
   <script src="cloud.js"></script>
   <script src="system.js"></script>
+  <script src="system-more.js"></script>
   <script src="shell.js"></script>
   <script src="scenarios.js"></script>
   <script src="goals.js"></script>
   <script src="viz.js"></script>
+  <script src="viz-more.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

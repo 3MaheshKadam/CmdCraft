@@ -261,14 +261,15 @@ class CmdCraftApp {
     });
 
     // Clicking anywhere in the terminal output area focuses the input prompt
+    const hasSelection = () => !!(window.getSelection && window.getSelection().toString());
     this.dom.termOutput.addEventListener("click", () => {
-      this.dom.termInput.focus();
+      if (!hasSelection()) this.dom.termInput.focus();
     });
 
     const termContainer = this.dom.termOutput.parentElement;
     if (termContainer) {
       termContainer.addEventListener("click", () => {
-        this.dom.termInput.focus();
+        if (!hasSelection()) this.dom.termInput.focus();
       });
     }
 
@@ -276,7 +277,9 @@ class CmdCraftApp {
     window.addEventListener("keydown", (e) => {
       if (this.dom.modalCongrats && !this.dom.modalCongrats.classList.contains("hidden")) return;
       if (document.activeElement === this.dom.termInput) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;   // Ctrl+C, Ctrl+A, Cmd+C ... must reach the page
       if (["Shift", "Control", "Alt", "Meta", "Escape", "Tab", "CapsLock"].includes(e.key)) return;
+      if (/^(INPUT|TEXTAREA|BUTTON|SELECT|A)$/.test((document.activeElement || {}).tagName || "")) return;
       this.dom.termInput.focus();
     });
 
@@ -309,6 +312,25 @@ class CmdCraftApp {
 
     // Clear terminal button
     this.dom.btnClearTerm.addEventListener("click", () => this.clearTerminal());
+
+    const copyBtn = document.getElementById("btn-copy-question");
+    if (copyBtn) {
+      copyBtn.addEventListener("click", async () => {
+        const sc = this.currentScenario;
+        if (!sc) return;
+        const text = `${sc.title}\n\n${sc.desc}\n\nObjective: ${sc.objective}`;
+        let ok = false;
+        try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {
+          const ta = document.createElement("textarea");
+          ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+          document.body.appendChild(ta); ta.select();
+          try { ok = document.execCommand("copy"); } catch (e2) { ok = false; }
+          ta.remove();
+        }
+        const label = document.getElementById("copy-question-label");
+        if (label) { label.textContent = ok ? "Copied ✓" : "Select text to copy"; setTimeout(() => { label.textContent = "Copy"; }, 1600); }
+      });
+    }
 
     const termNext = document.getElementById("btn-term-next");
     if (termNext) termNext.addEventListener("click", () => this.advanceScenario(true));
@@ -548,7 +570,8 @@ class CmdCraftApp {
   // ---- live panel: file tree for filesystem questions, otherwise the panel the scenario asks for ----
   vizKind() {
     const kind = (this.shellSetup && this.shellSetup.viz) || "fs";
-    return kind !== "fs" && this.shell && this.shell.sys && window.VizPanels && window.VizPanels.has(kind) ? kind : "fs";
+    if (kind === "fs" || !this.shell || !window.VizPanels || !window.VizPanels.has(kind)) return "fs";
+    return window.VizPanels.needsSys(kind) && !this.shell.sys ? "fs" : kind;
   }
 
   setVizMeta(kind) {
@@ -682,7 +705,7 @@ class CmdCraftApp {
     const indent = level * 16;
 
     itemEl.style.paddingLeft = `${indent}px`;
-    itemEl.className = `fs-item py-1 px-2 rounded flex items-center justify-between group cursor-pointer ${node.isCurrent ? 'fs-highlight' : ''} ${node.changed ? 'fs-flash' : ''}`;
+    itemEl.className = `fs-item py-1 px-2 rounded flex items-center justify-between group cursor-pointer ${node.isCurrent ? 'fs-highlight' : ''} ${node.changed ? 'fs-flash' : ''} ${node.hit ? 'fs-hit' : ''}`;
 
     // Left: Icon + Name
     const leftDiv = document.createElement("div");

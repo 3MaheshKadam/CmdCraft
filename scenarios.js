@@ -2323,7 +2323,7 @@ const SCENARIOS = [
   // TOPIC 16: ARCHIVES, COMPRESSION & BACKUP (Module 19)
   // ==========================================
   {
-    id: "LNX-ARCH-01",
+    id: "LNX-TAR-01",
     topic: "archiving",
     title: "Creating a Compressed Tarball",
     difficulty: "Beginner",
@@ -2379,7 +2379,7 @@ const SCENARIOS = [
     }
   },
   {
-    id: "LNX-ARCH-02",
+    id: "LNX-TAR-02",
     topic: "archiving",
     title: "Extracting a Gzipped Tar Archive",
     difficulty: "Beginner",
@@ -2427,7 +2427,7 @@ const SCENARIOS = [
     }
   },
   {
-    id: "LNX-ARCH-03",
+    id: "LNX-TAR-03",
     topic: "archiving",
     title: "Single File Direct Compression with Gzip",
     difficulty: "Beginner",

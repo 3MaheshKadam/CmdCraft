@@ -75,6 +75,12 @@
 }
 
 
+/* A file/path the last command found (find, grep) */
+.fs-hit {
+  background: rgb(var(--emerald-500) / 0.14);
+  box-shadow: inset 2px 0 0 rgb(var(--emerald-400));
+}
+
 /* A process/row that the last command removed (killed, deleted) */
 .viz-removed {
   text-decoration: line-through;

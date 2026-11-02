@@ -105,6 +105,44 @@ const BASE_GROUPS = [
   { name: "plugdev", gid: 46 }, { name: "lxd", gid: 110 }, { name: "docker", gid: 999 }, { name: "ubuntu", gid: 1000 }
 ];
 
+
+// ---- seeds: system info, network, storage, ssh ----
+const SYSINFO = { hostname: "ip-172-31-42-12", kernel: "5.15.0-1052-aws", kernelVersion: "#57-Ubuntu SMP Thu Oct 5 12:41:25 UTC 2023", arch: "x86_64", osName: "Ubuntu 22.04.3 LTS" };
+const OS_RELEASE = 'PRETTY_NAME="Ubuntu 22.04.3 LTS"\nNAME="Ubuntu"\nVERSION_ID="22.04"\nVERSION="22.04.3 LTS (Jammy Jellyfish)"\nID=ubuntu\nID_LIKE=debian\nHOME_URL="https://www.ubuntu.com/"\n';
+const NET_IFACES = [
+  { idx: 1, name: "lo", flags: "LOOPBACK,UP,LOWER_UP", mtu: 65536, state: "UNKNOWN", qdisc: "noqueue", mac: "00:00:00:00:00:00", ipv4: "127.0.0.1/8", scope: "host" },
+  { idx: 2, name: "eth0", flags: "BROADCAST,MULTICAST,UP,LOWER_UP", mtu: 9001, state: "UP", mac: "02:5b:1c:3e:9a:4d", ipv4: "172.31.42.12/20", brd: "172.31.47.255", scope: "global", dynamic: true }
+];
+const NET_SOCKETS = bind => [
+  { proto: "tcp", state: "LISTEN", recvq: 0, sendq: 128, addr: "0.0.0.0", port: 22, proc: "sshd", pid: 801, fd: 3 },
+  { proto: "tcp", state: "LISTEN", recvq: 0, sendq: 511, addr: bind, port: 3000, proc: "node", pid: 4512, fd: 19 },
+  { proto: "tcp", state: "LISTEN", recvq: 0, sendq: 4096, addr: "127.0.0.53%lo", port: 53, proc: "systemd-resolve", pid: 612, fd: 14 },
+  { proto: "udp", state: "UNCONN", recvq: 0, sendq: 0, addr: "127.0.0.53%lo", port: 53, proc: "systemd-resolve", pid: 612, fd: 13 },
+  { proto: "udp", state: "UNCONN", recvq: 0, sendq: 0, addr: "172.31.42.12%eth0", port: 68, proc: "systemd-network", pid: 590, fd: 15 }
+];
+const HEALTH_BODY = '{"status":"healthy","ok":true}';
+const NET_HTTP = { "http://localhost:3000/": { status: 200, statusText: "OK", headers: { "Content-Type": "application/json", "Content-Length": String(HEALTH_BODY.length) }, body: HEALTH_BODY } };
+const FS_ROWS = (rootUsed, rootPct, rootAvail, inodeUsed) => [
+  { fs: "/dev/root", size: "29G", used: rootUsed, avail: rootAvail, pct: rootPct, mount: "/", inodes: [1933312, inodeUsed] },
+  { fs: "/dev/xvda15", size: "124M", used: "11M", avail: "114M", pct: 9, mount: "/boot/efi", inodes: [0 + 65536, 5300] },
+  { fs: "tmpfs", size: "1.9G", used: "0", avail: "1.9G", pct: 0, mount: "/run", inodes: [489240, 1] }
+];
+const DEVICES = [
+  { name: "xvda", size: "30G", type: "disk", majmin: "202:0", children: [
+    { name: "xvda1", size: "29.9G", type: "part", majmin: "202:1", fstype: "ext4", fsver: "1.0", label: "root", uuid: "e81c0022-d78e-4a64-9b24-f7253457e512", avail: "1.2G", use: "96%", mount: "/" },
+    { name: "xvda15", size: "106M", type: "part", majmin: "202:15", fstype: "vfat", fsver: "FAT32", label: "UEFI", uuid: "9A24-F65B", avail: "114M", use: "9%", mount: "/boot/efi" }] },
+  { name: "xvdb", size: "100G", type: "disk", majmin: "202:16", fstype: "ext4", fsver: "1.0", label: "data", uuid: "7b3f1104-42ea-4a11-b890-4100918ef002", avail: "", use: "", mount: null }
+];
+const MOUNTS = [
+  { target: "/", source: "/dev/xvda1", fstype: "ext4", options: "rw,relatime" },
+  { target: "/boot/efi", source: "/dev/xvda15", fstype: "vfat", options: "rw,relatime" },
+  { target: "/data", source: "/dev/xvdb", fstype: "ext4", options: "rw,relatime" }
+];
+const SSH_OK = { hosts: { "192.168.1.50": { outcome: "ok" } } };
+const SSH_REFUSED = { hosts: { "192.168.1.50": { outcome: "refused" } } };
+const _ranArgs = (sh, name, re) => { const c = _ranCmd(sh, name); return !!c && c.args.some(a => re.test(a)); };
+const _ss3000 = (sh) => { const c = _ranCmd(sh, "ss"); return !!c && c.flags.has("l") && /3000/.test(_last(sh).out); };
+
 window.SCENARIO_SETUP = {
   // ---- Topic 2: Navigation ----
   "LNX-NAV-01": { ran: { cmd: "pwd" } },
@@ -380,5 +418,124 @@ window.SCENARIO_SETUP = {
     viz: "users",
     system: { users: [UBUNTU_USER], groups: BASE_GROUPS },
     goal: sh => { const l = _last(sh); return !!l && l.cmds.some(c => c.name === "groups" || c.name === "id") && _lines(l.out).join("|") === "ubuntu adm cdrom sudo dip plugdev lxd docker"; }
-  }
+  },
+
+  // =========================================================================================
+  // Architecture & info, networking, storage, SSH and archives, each with its own live panel
+  // =========================================================================================
+
+  // ---- Topic 1: Architecture & system info ----
+  "LNX-ARCH-01": { viz: "identity", system: { users: [UBUNTU_USER], groups: BASE_GROUPS, sysinfo: SYSINFO }, ran: { cmd: "whoami" } },
+  "LNX-ARCH-02": { viz: "identity", system: { users: [UBUNTU_USER], groups: BASE_GROUPS, sysinfo: SYSINFO }, goal: sh => !!_ranCmd(sh, "id") && /uid=1000\(ubuntu\)/.test(_last(sh).out) },
+  "LNX-ARCH-03": { viz: "identity", system: { users: [UBUNTU_USER], groups: BASE_GROUPS, sysinfo: SYSINFO }, goal: sh => { const u = _ranCmd(sh, "uname"); return !!u && (u.flags.has("a") || (u.flags.has("s") && u.flags.has("r") && u.flags.has("m"))); } },
+  "LNX-ARCH-04": { viz: "text", focus: ["/etc/os-release"], files: { "/etc/os-release": OS_RELEASE }, goal: sh => { const c = _ranCmd(sh, "cat"); return !!c && c.args.some(a => /os-release$/.test(a)) && /PRETTY_NAME/.test(_last(sh).out); } },
+  "LNX-NAV-05": { viz: "stat", focus: ["/etc/hosts"], nodes: { "/etc/hosts": { owner: "root", group: "root", content: "127.0.0.1 localhost\n127.0.1.1 ip-172-31-42-12\n" } }, goal: sh => { const c = _ranCmd(sh, "stat"); return !!c && c.args.some(a => /\/etc\/hosts$/.test(a)) && !!sh.lastStat; } },
+  "LNX-PERM-05": {
+    viz: "path", focus: ["/opt/myapp/current/deploy.sh"],
+    nodes: {
+      "/opt": { dir: true, owner: "root", group: "root", mode: 0o755 },
+      "/opt/myapp": { dir: true, owner: "root", group: "root", mode: 0o700 },
+      "/opt/myapp/releases/v2.4": { dir: true, owner: "root", group: "root", mode: 0o755 },
+      "/opt/myapp/releases/v2.4/deploy.sh": { owner: "root", group: "root", mode: 0o777, content: "#!/bin/bash\necho deploy\n" },
+      "/opt/myapp/current": { target: "releases/v2.4", owner: "root", group: "root" }
+    },
+    goal: sh => { const c = _ranCmd(sh, "namei"); return !!c && c.flags.has("l") && c.args.some(a => /deploy\.sh$/.test(a)) && !!sh.lastNamei; }
+  },
+
+  // ---- Topic 13: Networking ----
+  "LNX-NET-01": { viz: "net-interfaces", system: { network: { interfaces: NET_IFACES, sockets: [], http: {}, dns: {}, ping: {} } }, goal: sh => !!_ranCmd(sh, "ip") && /eth0/.test(_last(sh).out) },
+  "LNX-NET-02": { viz: "net-sockets", focusPort: 3000, system: { network: { interfaces: NET_IFACES, sockets: NET_SOCKETS("0.0.0.0"), http: {}, dns: {}, ping: {} } }, goal: _ss3000 },
+  "LNX-NET-03": { viz: "net-http", focus: ["http://localhost:3000/"], system: { network: { interfaces: NET_IFACES, sockets: [], http: NET_HTTP, dns: {}, ping: {} } }, goal: sh => { const c = _ranCmd(sh, "curl"); return !!c && c.flags.has("v") && c.args.some(a => /localhost:3000/.test(a)); } },
+  "LNX-NET-04": { viz: "net-dns", focus: ["api.example.com"], system: { network: { interfaces: NET_IFACES, sockets: [], http: {}, dns: { "api.example.com": { answers: ["203.0.113.195"], ttl: 300, resolver: "127.0.0.53" } }, ping: {} } }, goal: sh => { const c = _ranCmd(sh, "dig"); return !!c && c.args.includes("+short") && c.args.includes("api.example.com"); } },
+  "LNX-NET-05": { viz: "net-ping", focus: ["8.8.8.8"], system: { network: { interfaces: NET_IFACES, sockets: [], http: {}, dns: {}, ping: { "8.8.8.8": { rtt: [12.4, 11.9, 12.1, 12.0], ttl: 116, lost: 0 } } } }, goal: sh => !!sh.sys.lastPing && sh.sys.lastPing.host === "8.8.8.8" && sh.sys.lastPing.sent === 4 },
+
+  // ---- Topic 14: Storage ----
+  "LNX-DISK-01": { viz: "disk-usage", system: { disks: { filesystems: FS_ROWS("28G", 96, "1.2G", 410233), devices: [], du: {}, mounts: [] } }, goal: sh => { const c = _ranCmd(sh, "df"); return !!c && !c.flags.has("i"); } },
+  "LNX-DISK-02": { viz: "disk-usage", system: { disks: { filesystems: FS_ROWS("9.0G", 31, "20G", 1933312), devices: [], du: {}, mounts: [] } }, goal: sh => { const c = _ranCmd(sh, "df"); return !!c && c.flags.has("i"); } },
+  "LNX-DISK-03": {
+    viz: "disk-du", focus: ["/var"],
+    system: { disks: { filesystems: [], devices: [], mounts: [], du: { "/var": [
+      { path: "/var/backups", size: "12M", bytes: 12582912 }, { path: "/var/cache", size: "48M", bytes: 50331648 },
+      { path: "/var/lib", size: "180M", bytes: 188743680 }, { path: "/var/log", size: "24G", bytes: 25769803776 },
+      { path: "/var", size: "24G", bytes: 26021462016 }] } } },
+    goal: sh => { const c = _ranCmd(sh, "du"); return !!c && c.args.some(a => /^-[a-z0-9]*x/.test(a)) && c.args.some(a => /d1|max-depth=1/.test(a)) && c.args.includes("/var"); }
+  },
+  "LNX-DISK-04": { viz: "disk-lsblk", system: { disks: { filesystems: [], devices: DEVICES, du: {}, mounts: MOUNTS } }, goal: sh => { const c = _ranCmd(sh, "lsblk"); return !!c && c.flags.has("f"); } },
+  "LNX-DISK-05": { viz: "disk-mount", focus: ["/data"], system: { disks: { filesystems: [], devices: DEVICES, du: {}, mounts: MOUNTS } }, goal: sh => { const c = _ranCmd(sh, "findmnt"); return !!c && c.args.includes("/data"); } },
+
+  // ---- Topic 15: SSH & remote ----
+  "LNX-SSH-01": { viz: "ssh-connect", focus: ["192.168.1.50"], system: { ssh: SSH_OK }, goal: sh => { const c = _ranCmd(sh, "ssh"); return !!c && c.flags.has("v") && c.args.some(a => /@192\.168\.1\.50$/.test(a)); } },
+  "LNX-SSH-02": { system: { ssh: { hosts: {} } }, goal: sh => sh.isFile("/home/ubuntu/.ssh/id_ed25519") && sh.isFile("/home/ubuntu/.ssh/id_ed25519.pub") && (sh.read("/home/ubuntu/.ssh/id_ed25519.pub") || "").startsWith("ssh-ed25519") && sh.mode("/home/ubuntu/.ssh/id_ed25519") === 0o600 },
+  "LNX-SSH-03": { goal: sh => sh.mode("/home/ubuntu/.ssh/id_ed25519") === 0o600 },
+  "LNX-SSH-04": {
+    viz: "transfer", focus: { host: "192.168.1.50", dir: "/opt/myapp", local: "app.tar.gz" },
+    system: { ssh: { hosts: { "192.168.1.50": { outcome: "ok" } }, remote: { "192.168.1.50": { "/opt/myapp": [{ name: "deploy.sh", size: "2KB" }] } } } },
+    goal: sh => !!(sh.sys.remote["192.168.1.50"] && (sh.sys.remote["192.168.1.50"]["/opt/myapp"] || []).some(f => f.name === "app.tar.gz"))
+  },
+
+  // ---- Topic 16: Archives & compression ----
+  "LNX-TAR-01": { viz: "archive", goal: sh => { const n = sh.lookup(sh.abs("backup.tar.gz")); return !!n && !!n.archive && n.archive.z && n.archive.entries.some(e => /^site_assets\/logo\.png$/.test(e.path)) && n.archive.entries.some(e => /^site_assets\/style\.css$/.test(e.path)); } },
+  "LNX-TAR-02": {
+    viz: "archive",
+    nodes: { "/opt/myapp/release.tar.gz": { size: "8.5MB", archive: { z: true, entries: [
+      { path: "release", isDir: true }, { path: "release/server.js", size: "42KB", content: "console.log('v2.4')\n" },
+      { path: "release/package.json", size: "1.1KB", content: "{\"name\":\"myapp\"}\n" }, { path: "release/config", isDir: true }, { path: "release/config/prod.json", size: "800B", content: "{}\n" }] } } },
+    goal: sh => sh.isFile("release/server.js") && sh.isFile("release/package.json") && sh.isFile("release/config/prod.json")
+  },
+  "LNX-TAR-03": { viz: "archive", goal: sh => sh.exists("old_access.log.gz") && !sh.exists("old_access.log") },
+
+  // =========================================================================================
+  // Production incidents: same tools, real-world stakes
+  // =========================================================================================
+  "INCIDENT-01": {
+    nodes: { "/var/log/nginx/error_flood.log": { size: "4.2GB" }, "/var/log/auth.log": { size: "340KB" } },
+    goal: sh => !!_ranCmd(sh, "find") && _sameSet(_lines(_last(sh).out), ["/var/log/audit/runaway_audit.log", "/var/log/nginx/error_flood.log"])
+  },
+  "INCIDENT-02": {
+    viz: "journal",
+    system: {
+      services: { myapp: { desc: "MyApp API server", state: "failed", detail: "exit-code", enabled: true, pid: null, since: 5, user: "ubuntu", exec: "/usr/bin/node /opt/app/server.js" } },
+      journal: [
+        { ago: 6, unit: "myapp", pid: 2104, level: "info", msg: "Starting MyApp API server..." },
+        { ago: 6, unit: "myapp", pid: 2104, level: "info", msg: "[INFO] Loading config from /etc/myapp/prod.env" },
+        { ago: 5, unit: "myapp", pid: 2104, level: "error", msg: "[FATAL] Database connection failed: ECONNREFUSED 127.0.0.1:5432" },
+        { ago: 5, unit: "myapp", pid: null, level: "error", msg: "myapp.service: Main process exited, code=exited, status=1/FAILURE" },
+        { ago: 5, unit: "myapp", pid: null, level: "error", msg: "myapp.service: Failed with result 'exit-code'." }
+      ]
+    },
+    goal: sh => { const j = sh.sys.lastJournal; return !!j && j.unit === "myapp" && j.lines === 100 && j.noPager; }
+  },
+  "INCIDENT-03": { viz: "net-sockets", focusPort: 3000, system: { network: { interfaces: NET_IFACES, sockets: NET_SOCKETS("127.0.0.1"), http: {}, dns: {}, ping: {} } }, goal: _ss3000 },
+  "INCIDENT-04": { viz: "net-dns", focus: ["api.example.com"], expectedIp: "203.0.113.195", system: { network: { interfaces: NET_IFACES, sockets: [], http: {}, dns: { "api.example.com": { answers: ["198.51.100.24"], ttl: 3600, resolver: "127.0.0.53" } }, ping: {} } }, goal: sh => { const c = _ranCmd(sh, "dig"); return !!c && c.args.includes("api.example.com"); } },
+  "INCIDENT-05": { files: { "/opt/myapp/deploy.sh": "#!/bin/bash\necho deploying\n" }, goal: sh => (sh.mode("/opt/myapp/deploy.sh") & 0o100) !== 0 },
+  "INCIDENT-06": {
+    viz: "processes",
+    system: { processes: [...BASE_PROCS, ...NGINX_PROCS, P(8921, "ubuntu", 99.8, 12.4, "/usr/bin/python3 rogue_worker.py", "python3", { stat: "R" }), P(4512, "node", 3.1, 4.2, "node server.js", "node")] },
+    goal: sh => {
+      const l = _last(sh); if (!l) return false;
+      const ps = l.cmds.find(c => c.name === "ps"), head = l.cmds.find(c => c.name === "head");
+      if (!ps || !head || !(ps.args.some(a => /sort/.test(a) && /cpu/.test(a)) || ps.args.join(" ").match(/--sort\s+-%cpu/))) return false;
+      const lines = _lines(l.out);
+      return lines.length <= 10 && /rogue_worker/.test(lines[1] || "");
+    }
+  },
+  "INCIDENT-07": {
+    viz: "cron",
+    system: { services: { cron: CRON_SVC }, cron: ["0 2 * * * backup.sh >> backup.log 2>&1", "*/15 * * * * healthcheck.sh"], journal: [{ ago: 750, unit: "cron", pid: 8920, level: "error", msg: "(ubuntu) CMD (backup.sh >> backup.log 2>&1)" }, { ago: 750, unit: "cron", pid: 8921, level: "error", msg: "(ubuntu) ERROR (backup.sh: command not found)" }] },
+    goal: sh => { const c = _ranCmd(sh, "crontab"); return !!c && c.args.includes("-l"); }
+  },
+  "INCIDENT-08": { viz: "ssh-connect", focus: ["192.168.1.50"], system: { ssh: SSH_REFUSED }, goal: sh => { const c = _ranCmd(sh, "ssh"); return !!c && c.flags.has("v") && c.args.some(a => /@192\.168\.1\.50$/.test(a)); } },
+  "INCIDENT-09": {
+    viz: "text", focus: ["/var/log/myapp.log"], files: { "/var/log/myapp.log": APP_LOG },
+    goal: sh => { const t = _ranCmd(sh, "tail"); return !!t && (t.flags.has("f") || t.flags.has("F")) && t.args.some(a => a.endsWith("myapp.log")); }
+  },
+  "INCIDENT-10": { viz: "disk-lsblk", system: { disks: { filesystems: [], devices: DEVICES, du: {}, mounts: MOUNTS.filter(m => m.target !== "/data") } }, goal: sh => { const c = _ranCmd(sh, "lsblk"); return !!c && c.flags.has("f"); } }
 };
+
+// Text-tool scenarios read a file, so they show that file with the matched lines lit up instead of a directory tree.
+Object.entries({
+  "LNX-GREP-01": ["/var/log/syslog"], "LNX-GREP-02": ["config/auth.env", "scripts/test.py"], "LNX-GREP-03": ["app.log"],
+  "LNX-TEXT-01": ["/var/log/myapp.log"], "LNX-TEXT-02": ["access.log"], "LNX-TEXT-03": ["config.env"], "LNX-TEXT-04": ["access.log"], "LNX-TEXT-05": ["/etc/passwd"],
+  "LNX-REDIR-01": [".env"], "LNX-REDIR-02": ["deploy.log"], "LNX-REDIR-04": ["disk-report.txt"]
+}).forEach(([id, focus]) => { Object.assign(window.SCENARIO_SETUP[id], { viz: "text", focus }); });
+

@@ -256,6 +256,9 @@
   root.VizPanels = {
     META,
     has: kind => !!RENDERERS[kind],
+    // panels in viz-more.js register themselves here; needsSys:false means the panel only needs the virtual filesystem
+    register(kind, meta, fn) { META[kind] = meta; RENDERERS[kind] = fn; },
+    needsSys: kind => !(META[kind] && META[kind].needsSys === false),
     render(kind, host, shell) {
       host.replaceChildren();
       RENDERERS[kind](host, shell);

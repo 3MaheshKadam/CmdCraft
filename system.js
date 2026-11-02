@@ -75,9 +75,15 @@
         useradd: this.cmd_useradd, usermod: this.cmd_usermod, groupadd: this.cmd_groupadd,
         groups: this.cmd_groups, id: this.cmd_id, getent: this.cmd_getent
       };
+      this.ext = {};
+      this.extraState = null;
+      (SystemState.extensions || []).forEach(init => init(this, seed));
     }
 
-    handles(name) { return Object.prototype.hasOwnProperty.call(this.commands, name) && this.hasData(name); }
+    handles(name) {
+      if (this.ext[name]) return this.ext[name].has(this);
+      return Object.prototype.hasOwnProperty.call(this.commands, name) && this.hasData(name);
+    }
 
     // A command is only simulated when the scenario seeded the data it needs.
     hasData(name) {
@@ -91,6 +97,7 @@
 
     // Syntax each command understands; anything else is left to the scenario's own matcher.
     supported(name, args) {
+      if (this.ext[name] && this.ext[name].supported) return this.ext[name].supported(args, this);
       if (name === "crontab") return args.length === 1 && args[0] === "-l";
       if (name === "systemctl") {
         const sub = args.find(a => !a.startsWith("-"));
@@ -111,7 +118,7 @@
       return true;
     }
 
-    command(name) { return this.commands[name]; }
+    command(name) { return this.ext[name] ? this.ext[name].fn : this.commands[name]; }
 
     // ---- change tracking for the live panels ----
     snapshot() {
@@ -137,7 +144,7 @@
 
     // Fingerprint used to tell "read-only" commands from ones that changed something.
     stateKey() {
-      return JSON.stringify([this.processes, this.services, this.users, this.groups, this.cron, this.signals.length]);
+      return JSON.stringify([this.processes, this.services, this.users, this.groups, this.cron, this.signals.length, this.extraState ? this.extraState() : null]);
     }
 
     membersOf(group) { return this.users.filter(u => u.primary === group || (u.groups || []).includes(group)).map(u => u.name); }
@@ -501,6 +508,8 @@
     }
   }
 
+  SystemState.extensions = [];
+  SystemState.parseOpts = parseOpts;
   root.SystemState = SystemState;
   root.SYSTEM_CLOCK = { CLOCK, NOW_MIN, clockLabel };
   if (typeof module !== "undefined" && module.exports) module.exports = { SystemState };

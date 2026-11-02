@@ -12,7 +12,7 @@
   const KNOWN = new Set([
     "pwd", "cd", "ls", "cat", "mkdir", "rmdir", "touch", "rm", "cp", "mv", "chmod", "chown",
     "ln", "echo", "whoami", "head", "tail", "wc", "grep", "sort", "uniq", "tee", "df",
-    "find", "awk", "sed", "cut"
+    "find", "awk", "sed", "cut", "stat", "namei", "tar", "gzip", "gunzip"
   ]);
 
   // ---------- helpers ----------
@@ -138,8 +138,11 @@
       this.oldpwd = null;
       this.commandLog = [];
       this.lastSig = null;
+      this.setup = setup;
       this.sys = null;
       this.follow = null;
+      this.hits = new Set();
+      this.lastStat = null; this.lastNamei = null; this.lastArchive = null;
 
       if (tree) {
         this.viewRoot = normalize(tree.name);
@@ -159,6 +162,7 @@
         if (!n) { this.mkdirp(dirname(abs)); n = this.createFile(abs); }
         if (n) { n.content = content; if (!n.sizeDeclared) n.size = content.length; }
       });
+      Object.entries(setup.nodes || {}).forEach(([np, spec]) => this.seedNode(np, spec));
       if (setup.system && root.SystemState) { this.sys = new root.SystemState(setup.system); this.sys.syncAccountFiles(this); }
       this.snapshotSignature();
     }
@@ -192,6 +196,29 @@
         if (child.isCurrent) this.cwd = childPath;
         if (isDir) this.importNode(child, childPath);
       });
+    }
+
+    // Seed any node with the properties a scenario needs: {dir|target|archive, owner, group, mode, size, content}
+    seedNode(p, spec) {
+      const a = normalize(p);
+      let n;
+      if (spec.dir) { n = this.mkdirp(a); }
+      else {
+        this.mkdirp(dirname(a));
+        const parent = this.lookup(dirname(a));
+        n = { name: basename(a), type: spec.target !== undefined ? "link" : "file", mode: 0o644, owner: DEFAULT_OWNER, group: DEFAULT_GROUP, content: spec.content === undefined ? null : spec.content, size: 0, mtime: "Oct 29 14:00" };
+        if (spec.target !== undefined) { n.target = spec.target; n.mode = 0o777; }
+        parent.children.set(n.name, n);
+      }
+      if (spec.owner) n.owner = spec.owner;
+      if (spec.group) n.group = spec.group;
+      if (spec.mode !== undefined) n.mode = spec.mode;
+      if (spec.content !== undefined && n.type === "file") n.size = spec.content.length;
+      if (spec.size) { n.size = parseSize(spec.size); n.sizeDeclared = true; }
+      if (spec.archive) {
+        n.archive = { z: !!spec.archive.z, entries: spec.archive.entries.map(e => ({ path: e.path, isDir: !!e.isDir, node: e.isDir ? null : { content: e.content === undefined ? null : e.content, size: parseSize(e.size) || (e.content || "").length, mode: 0o644, owner: DEFAULT_OWNER, group: DEFAULT_GROUP } })) };
+      }
+      return n;
     }
 
     // --- path utilities ---
@@ -291,7 +318,7 @@
           let name = words[0] === "sudo" ? words[1] : words[0];
           if (!name) return { handled: false };
           if (!KNOWN.has(name) && !(this.sys && this.sys.handles(name))) return { handled: false };
-          if (name === "df" && words.some(w => w.startsWith("-") && !/^-[hT]*$/.test(w))) return { handled: false };
+          if (name === "df" && !(this.sys && this.sys.handles("df")) && words.some(w => w.startsWith("-") && !/^-[hT]*$/.test(w))) return { handled: false };
           if (!this.supported(name, words.slice(words.indexOf(name) + 1))) return { handled: false };
         }
       }
@@ -300,6 +327,7 @@
       const logStart = this.commandLog.length;
       const sysBefore = this.sys ? this.sys.beginExec() : null;
       this.follow = null;
+      this.hits = new Set(); this.lastStat = null; this.lastNamei = null; this.lastArchive = null;
       if (this.sys) this.sys.followRequest = null;
       for (const pipeline of lists) {
         let stdin = "";
@@ -392,8 +420,8 @@
 
       const fn = this["cmd_" + name];
       let res;
-      if (fn) res = fn.call(this, args, flags, stdin);
-      else if (this.sys && this.sys.handles(name)) res = this.sys.command(name).call(this.sys, args, flags, stdin, this);
+      if (this.sys && this.sys.handles(name)) res = this.sys.command(name).call(this.sys, args, flags, stdin, this);
+      else if (fn) res = fn.call(this, args, flags, stdin);
       else res = { out: "", err: "" };
       let out = res.out || "", err = res.err || "";
 
@@ -799,6 +827,7 @@
         const lines = src.text.replace(/\n$/, "").split("\n");
         const hits = [];
         lines.forEach((l, i) => { if (src.text && re.test(l) !== flags.has("v")) hits.push({ l, i }); });
+        if (hits.length && src.name) this.hits.add(this.abs(src.name));
         if (flags.has("c")) out += (multi ? src.name + ":" : "") + hits.length + "\n";
         else hits.forEach(h => { out += (multi ? src.name + ":" : "") + (flags.has("n") ? (h.i + 1) + ":" : "") + h.l + "\n"; });
       });
@@ -808,7 +837,8 @@
     cmd_sort(args, flags, stdin) {
       const { text, err } = this.textLines(args, stdin, "sort");
       let lines = text.replace(/\n$/, "").split("\n").filter((l, i, a) => text !== "" || a.length > 1);
-      lines.sort(flags.has("n") ? (a, b) => parseFloat(a) - parseFloat(b) : (a, b) => (a < b ? -1 : a > b ? 1 : 0));
+      const human = t => { const m = /^\s*([\d.]+)\s*([KMGT]?)/i.exec(t); return m ? parseFloat(m[1]) * ({ "": 1, K: 1024, M: 1048576, G: 1073741824, T: 1099511627776 })[m[2].toUpperCase()] : 0; };
+      lines.sort(flags.has("h") ? (a, b) => human(a) - human(b) : flags.has("n") ? (a, b) => parseFloat(a) - parseFloat(b) : (a, b) => (a < b ? -1 : a > b ? 1 : 0));
       if (flags.has("r")) lines.reverse();
       return { out: lines.length ? lines.join("\n") + "\n" : "", err };
     }
@@ -860,7 +890,7 @@
           const typeOk = !want["-type"] || (want["-type"] === "d" ? node.type === "dir" : want["-type"] === "l" ? node.type === "link" : node.type === "file");
           const nameOk = !nameRe || nameRe.test(shown.slice(shown.lastIndexOf("/") + 1));
           const sizeOk = !sizeTest || (node.type === "file" && sizeTest(node.size || 0));
-          if (typeOk && nameOk && sizeOk) out += shown + "\n";
+          if (typeOk && nameOk && sizeOk) { out += shown + "\n"; this.hits.add(this.abs(shown)); }
           if (node.type === "dir" && depth < maxDepth) {
             [...node.children.entries()].sort((a, b) => a[0].localeCompare(b[0])).forEach(([k, v]) => visit(v, shown.replace(/\/$/, "") + "/" + k, depth + 1));
           }
@@ -945,6 +975,151 @@
       return { out, err };
     }
 
+    cmd_stat(args) {
+      const files = args.filter(a => !a.startsWith("-"));
+      if (!files.length) return { err: "stat: missing operand\n" };
+      const idOf = n => (n === "root" ? 0 : n === "ubuntu" ? 1000 : 1001);
+      let out = "", err = "";
+      files.forEach(f => {
+        const a = this.abs(f);
+        const n = this.lookup(a);
+        if (!n) { err += "stat: cannot statx '" + f + "': No such file or directory\n"; return; }
+        const kind = n.type === "dir" ? "directory" : n.type === "link" ? "symbolic link" : (n.size ? "regular file" : "regular empty file");
+        const size = n.type === "dir" ? 4096 : n.type === "link" ? n.target.length : (n.size || 0);
+        let inode = 0; for (const ch of a) inode = (inode * 31 + ch.charCodeAt(0)) % 900000;
+        inode += 100000;
+        const octal = ("0" + n.mode.toString(8)).slice(-4);
+        const info = { path: a, type: n.type, perm: permString(n), octal, owner: n.owner, group: n.group, uid: idOf(n.owner), gid: idOf(n.group), size, inode, kind };
+        this.lastStat = info;
+        out += "  File: " + (n.type === "link" ? f + " -> " + n.target : f) + "\n";
+        out += "  Size: " + String(size).padEnd(10) + "\tBlocks: " + String(Math.ceil(size / 4096) * 8).padEnd(10) + " IO Block: 4096   " + kind + "\n";
+        out += "Device: 10301h/66305d\tInode: " + String(inode).padEnd(10) + " Links: 1\n";
+        out += "Access: (" + octal + "/" + permString(n) + ")  Uid: (" + String(info.uid).padStart(5) + "/" + n.owner.padStart(8) + ")   Gid: (" + String(info.gid).padStart(5) + "/" + n.group.padStart(8) + ")\n";
+        out += "Access: 2026-10-29 10:15:00.000000000 +0000\nModify: 2026-10-25 08:30:12.000000000 +0000\nChange: 2026-10-25 08:30:12.000000000 +0000\n Birth: -\n";
+      });
+      return { out, err };
+    }
+
+    // namei -l: walk a path one component at a time showing who owns it and what the permissions are
+    cmd_namei(args) {
+      const p = args.filter(a => !a.startsWith("-"))[0];
+      if (!p) return { err: "namei: missing operand\n" };
+      const a = this.abs(p);
+      let out = "f: " + p + "\n";
+      const chain = [{ name: "/", perm: permString(this.root), mode: this.root.mode, owner: this.root.owner, group: this.root.group, type: "dir" }];
+      out += permString(this.root) + " " + this.root.owner + " " + this.root.group + " /\n";
+      let node = this.root, cur = "";
+      for (const part of a.split("/").filter(Boolean)) {
+        const next = node && node.type === "dir" ? node.children.get(part) : null;
+        if (!next) { out += " " + part + " - No such file or directory\n"; chain.push({ name: part, missing: true }); break; }
+        cur += "/" + part;
+        const label = next.type === "link" ? part + " -> " + next.target : part;
+        out += permString(next) + " " + next.owner + " " + next.group + " " + label + "\n";
+        chain.push({ name: part, label, perm: permString(next), mode: next.mode, owner: next.owner, group: next.group, type: next.type });
+        node = next.type === "link" ? this.followLink(next, dirname(cur).replace(/^\//, "")) : next;
+      }
+      this.lastNamei = { path: a, chain };
+      return { out };
+    }
+
+    snapshotEntry(node, rel) {
+      return { path: rel, isDir: node.type === "dir", node: node.type === "dir" ? null : { content: node.content, size: node.size || 0, mode: node.mode, owner: node.owner, group: node.group } };
+    }
+
+    collectEntries(node, rel, list) {
+      list.push(this.snapshotEntry(node, rel));
+      if (node.type === "dir") [...node.children.entries()].sort((x, y) => x[0].localeCompare(y[0])).forEach(([k, v]) => this.collectEntries(v, rel + "/" + k, list));
+    }
+
+    cmd_tar(args) {
+      let letters = "", archive = null, dest = null;
+      const rest = [];
+      let i = 0;
+      if (args[0] && !args[0].startsWith("-")) { letters = args[0]; i = 1; }
+      for (; i < args.length; i++) {
+        const a = args[i];
+        if (a === "-C") { dest = args[++i]; continue; }
+        if (a.startsWith("-") && !a.startsWith("--")) { letters += a.slice(1); continue; }
+        rest.push(a);
+      }
+      if (letters.includes("f")) archive = rest.shift();
+      const verbose = letters.includes("v"), z = letters.includes("z");
+      const op = letters.includes("c") ? "c" : letters.includes("x") ? "x" : letters.includes("t") ? "t" : null;
+      if (!op) return { err: "tar: You must specify one of the '-Acdtrux' options\n" };
+      if (!archive) return { err: "tar: Refusing to read archive contents from terminal (missing -f option?)\n" };
+      const aAbs = this.abs(archive);
+      let out = "", err = "";
+      if (op === "c") {
+        if (!rest.length) return { err: "tar: Cowardly refusing to create an empty archive\n" };
+        const entries = [];
+        rest.forEach(src => {
+          const n = this.lookup(this.abs(src), true);
+          if (!n) { err += "tar: " + src + ": Cannot stat: No such file or directory\n"; return; }
+          this.collectEntries(n, src.replace(/^\.\//, "").replace(/\/$/, ""), entries);
+        });
+        if (!entries.length) return { err: err + "tar: Exiting with failure status due to previous errors\n" };
+        const parent = this.lookup(dirname(aAbs), true);
+        if (!parent) return { err: "tar: " + archive + ": Cannot open: No such file or directory\n" };
+        const raw = entries.reduce((sum, e) => sum + (e.node ? e.node.size : 0) + 512, 0);
+        const size = z ? Math.max(180, Math.round(raw * 0.38)) : raw + 1024;
+        const node = { name: basename(aAbs), type: "file", mode: 0o644, owner: DEFAULT_OWNER, group: DEFAULT_GROUP, content: null, size, mtime: nowStamp(), archive: { z, entries } };
+        parent.children.set(node.name, node);
+        out = verbose ? entries.map(e => e.path + (e.isDir ? "/" : "")).join("\n") + "\n" : "";
+        this.lastArchive = { op: "create", file: archive, entries: entries.map(e => e.path), size, raw };
+        return { out, err };
+      }
+      const arch = this.lookup(aAbs, true);
+      if (!arch) return { err: "tar: " + archive + ": Cannot open: No such file or directory\ntar: Error is not recoverable: exiting now\n" };
+      if (!arch.archive) return { err: "tar: This does not look like a tar archive\ntar: Exiting with failure status due to previous errors\n" };
+      if (op === "t") {
+        this.lastArchive = { op: "list", file: archive, entries: arch.archive.entries.map(e => e.path), size: arch.size };
+        return { out: arch.archive.entries.map(e => e.path + (e.isDir ? "/" : "")).join("\n") + "\n" };
+      }
+      const base = dest ? this.abs(dest) : this.cwd;
+      this.mkdirp(base);
+      arch.archive.entries.forEach(e => {
+        const target = normalize(base + "/" + e.path);
+        if (e.isDir) { this.mkdirp(target); }
+        else {
+          this.mkdirp(dirname(target));
+          const n = this.createFile(target, e.node.content === null ? "" : e.node.content);
+          n.content = e.node.content; n.size = e.node.size; n.mode = e.node.mode; n.sizeDeclared = true;
+        }
+        if (verbose) out += e.path + (e.isDir ? "/" : "") + "\n";
+      });
+      this.lastArchive = { op: "extract", file: archive, entries: arch.archive.entries.map(e => e.path), size: arch.size, into: base };
+      return { out, err };
+    }
+
+    cmd_gzip(args, flags) {
+      const decompress = flags.has("d");
+      let err = "";
+      args.filter(a => !a.startsWith("-")).forEach(f => {
+        const a = this.abs(f);
+        const n = this.lookup(a);
+        if (!n) { err += "gzip: " + f + ": No such file or directory\n"; return; }
+        if (n.type === "dir") { err += "gzip: " + f + " is a directory -- ignored\n"; return; }
+        const parent = this.lookup(dirname(a), true);
+        if (!decompress) {
+          if (f.endsWith(".gz")) { err += "gzip: " + f + " already has .gz suffix -- unchanged\n"; return; }
+          const gz = { name: n.name + ".gz", type: "file", mode: n.mode, owner: n.owner, group: n.group, content: null, size: Math.max(60, Math.round((n.size || 0) * 0.11)), mtime: nowStamp(), gz: { orig: { content: n.content, size: n.size || 0, mode: n.mode, owner: n.owner, group: n.group } } };
+          parent.children.set(gz.name, gz);
+          if (!flags.has("k")) parent.children.delete(n.name);
+          this.lastArchive = { op: "gzip", file: f, before: n.size || 0, after: gz.size };
+        } else {
+          if (!n.gz) { err += "gzip: " + f + ": not in gzip format\n"; return; }
+          const name = n.name.replace(/\.gz$/, "");
+          const restored = { name, type: "file", mode: n.gz.orig.mode, owner: n.gz.orig.owner, group: n.gz.orig.group, content: n.gz.orig.content, size: n.gz.orig.size, sizeDeclared: true, mtime: nowStamp() };
+          parent.children.set(name, restored);
+          if (!flags.has("k")) parent.children.delete(n.name);
+          this.lastArchive = { op: "gunzip", file: f, before: n.size, after: restored.size };
+        }
+      });
+      return { err };
+    }
+
+    cmd_gunzip(args, flags) { return this.cmd_gzip(args, new Set([...flags, "d"])); }
+
     // `df` is read-only and not tied to the virtual filesystem, so it returns fixed sample output.
     cmd_df() {
       return { out: "Filesystem      Size  Used Avail Use% Mounted on\n/dev/root        29G  8.2G   21G  29% /\ntmpfs           2.0G     0  2.0G   0% /dev/shm\n" };
@@ -980,6 +1155,7 @@
         out.perm = permString(node);
         if (node.owner !== DEFAULT_OWNER || node.group !== DEFAULT_GROUP) out.owner = `${node.owner}:${node.group}`;
         if (path === this.cwd) out.isCurrent = true;
+        if (this.hits.has(path)) out.hit = true;
         if (prev.get(path) !== sig.get(path)) out.changed = true;
         if (node.type === "dir") {
           out.children = [...node.children.entries()]
