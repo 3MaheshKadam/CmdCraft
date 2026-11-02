@@ -167,6 +167,8 @@
 
   // ---------- cron ----------
   function describeCron(expr) {
+    const mm = /^@(reboot|yearly|annually|monthly|weekly|daily|midnight|hourly)\b/.exec(expr.trim());
+    if (mm) return { reboot: "At every system boot", yearly: "Once a year (Jan 1, 00:00)", annually: "Once a year (Jan 1, 00:00)", monthly: "Once a month (day 1, 00:00)", weekly: "Once a week (Sunday 00:00)", daily: "Every day at 00:00", midnight: "Every day at 00:00", hourly: "Every hour, on the hour" }[mm[1]];
     const f = expr.trim().split(/\s+/).slice(0, 5);
     if (f.length < 5) return expr;
     const [m, h, dom, mon, dow] = f;
@@ -197,9 +199,12 @@
       const parts = line.trim().split(/\s+/);
       const card = el("div", "rounded-md border border-neutral-800 bg-surface-1 px-2.5 py-1.5" + changedClass(sys, "cron:" + i));
       card.appendChild(el("div", "text-neutral-100", describeCron(line)));
-      card.appendChild(el("div", "text-[10px] text-neutral-500 font-mono", parts.slice(0, 5).join(" ")));
-      const cmd = el("div", "text-[11px] text-neutral-300 font-mono truncate", parts.slice(5).join(" "));
-      cmd.title = parts.slice(5).join(" ");
+      const macro = parts[0].startsWith("@");
+      const when = macro ? parts[0] : parts.slice(0, 5).join(" ");
+      const what = (macro ? parts.slice(1) : parts.slice(5)).join(" ");
+      card.appendChild(el("div", "text-[10px] text-neutral-500 font-mono", when));
+      const cmd = el("div", "text-[11px] text-neutral-300 font-mono truncate", what);
+      cmd.title = what;
       card.appendChild(cmd);
       table.appendChild(card);
     });

@@ -73,7 +73,8 @@
         ps: this.cmd_ps, pgrep: this.cmd_pgrep, pkill: this.cmd_pkill, kill: this.cmd_kill,
         systemctl: this.cmd_systemctl, journalctl: this.cmd_journalctl, dmesg: this.cmd_dmesg, crontab: this.cmd_crontab,
         useradd: this.cmd_useradd, usermod: this.cmd_usermod, groupadd: this.cmd_groupadd,
-        groups: this.cmd_groups, id: this.cmd_id, getent: this.cmd_getent
+        groups: this.cmd_groups, id: this.cmd_id, getent: this.cmd_getent,
+        userdel: this.cmd_userdel, groupdel: this.cmd_groupdel, passwd: this.cmd_passwd, who: this.cmd_who, w: this.cmd_w, last: this.cmd_last
       };
       this.ext = {};
       this.extraState = null;
@@ -98,23 +99,24 @@
     // Syntax each command understands; anything else is left to the scenario's own matcher.
     supported(name, args) {
       if (this.ext[name] && this.ext[name].supported) return this.ext[name].supported(args, this);
-      if (name === "crontab") return args.length === 1 && args[0] === "-l";
+      if (name === "crontab") return args.length === 1 && (["-l", "-r", "-e", "-"].includes(args[0]) || !args[0].startsWith("-"));
       if (name === "systemctl") {
         const sub = args.find(a => !a.startsWith("-"));
-        return ["status", "start", "stop", "restart", "enable", "disable", "daemon-reload", "is-active", "is-enabled"].includes(sub);
+        if (!sub && args.includes("--failed")) return true;
+        return ["status", "start", "stop", "restart", "reload", "enable", "disable", "daemon-reload", "is-active", "is-enabled", "is-failed", "get-default", "list-units", "cat"].includes(sub);
       }
       if (name === "journalctl") {
-        const ok = ["-u", "--unit", "-n", "--lines", "--no-pager", "--since", "-f", "--follow", "-r"];
-        const takesValue = ["-u", "--unit", "-n", "--lines", "--since"];
+        const ok = ["-u", "--unit", "-n", "--lines", "--no-pager", "--since", "--until", "-f", "--follow", "-r", "-b", "-p", "-k", "--dmesg", "--disk-usage", "--list-boots"];
+        const takesValue = ["-u", "--unit", "-n", "--lines", "--since", "--until", "-p"];
         for (let i = 0; i < args.length; i++) {
           const a = args[i];
+          if (a === "-b" && /^-?\d+$/.test(args[i + 1] || "")) { i++; continue; }   // -b -1 : previous boot
           if (takesValue.includes(a)) { i++; continue; }      // the next token is its value, even if it starts with "-"
           if (!a.startsWith("-")) continue;
           if (!(ok.includes(a.split("=")[0]) || /^-n\d+$/.test(a) || /^-u\S+$/.test(a))) return false;
         }
         return true;
       }
-      if (name === "ps") return true;
       return true;
     }
 
@@ -170,6 +172,21 @@
         const field = { cpu: "cpu", mem: "mem", pid: "pid", rss: "rss", vsz: "vsz" }[key] || "pid";
         procs.sort((a, b) => (desc ? b[field] - a[field] : a[field] - b[field]));
       }
+      const pi = args.indexOf("-p");
+      if (pi !== -1) { const want = String(args[pi + 1] || "").split(",").map(Number); procs = procs.filter(p => want.includes(p.pid)); }
+      const oi = args.findIndex(a => a === "-o" || /^-[a-z]*o$/.test(a) || a.startsWith("-o") && a.length > 2);
+      if (oi !== -1) {
+        const spec = args[oi].length > 2 && !/^-[a-z]*o$/.test(args[oi]) ? args[oi].slice(2) : String(args[oi + 1] || "pid,comm");
+        const cols = spec.split(",").map(c => c.trim().toLowerCase());
+        const H = { pid: "PID", ppid: "PPID", user: "USER", "%cpu": "%CPU", pcpu: "%CPU", "%mem": "%MEM", pmem: "%MEM", vsz: "VSZ", rss: "RSS", stat: "STAT", comm: "COMMAND", cmd: "CMD", args: "COMMAND", etime: "ELAPSED", tty: "TT" };
+        const V = { pid: p => p.pid, ppid: p => p.ppid || 1, user: p => p.user, "%cpu": p => p.cpu.toFixed(1), pcpu: p => p.cpu.toFixed(1), "%mem": p => p.mem.toFixed(1), pmem: p => p.mem.toFixed(1), vsz: p => p.vsz, rss: p => p.rss, stat: p => p.stat || "S", comm: p => p.comm || p.cmd.split(" ")[0], cmd: p => p.cmd, args: p => p.cmd, etime: p => "06:30:00", tty: p => p.tty || "?" };
+        const use = cols.filter(c => H[c]);
+        procs.forEach(p => this.highlight.add(p.pid));
+        const rowsO = procs.map(p => use.map(c => String(V[c](p))));
+        const w = use.map((c, i) => Math.max(H[c].length, ...rowsO.map(r => r[i].length)));
+        const fmt = r => r.map((cell, i) => (i === use.length - 1 ? cell : (["comm", "cmd", "args", "user", "stat"].includes(use[i]) ? cell.padEnd(w[i]) : cell.padStart(w[i])))).join(" ");
+        return { out: fmt(use.map(c => H[c])) + "\n" + rowsO.map(fmt).join("\n") + (rowsO.length ? "\n" : "") };
+      }
       const wide = flags.has("a") || flags.has("e") || flags.has("x") || /\baux\b|-ef/.test(raw);
       if (!wide && !sort) return { out: "    PID TTY          TIME CMD\n   2300 pts/0    00:00:00 bash\n   2455 pts/0    00:00:00 ps\n" };
       procs.forEach(p => this.highlight.add(p.pid));
@@ -222,6 +239,7 @@
         if (/^-/.test(a)) { sig = this.parseSig(a.slice(1)); continue; }
         pids.push(a);
       }
+      if (args.includes("-l")) return { out: Object.entries(SIGNALS).sort((a, b) => a[1] - b[1]).map(([n, v]) => v + ") SIG" + n).join("\n") + "\n" };
       if (!pids.length) return { err: "kill: usage: kill [-s sigspec | -n signum | -sigspec] pid | jobspec ... or kill -l [sigspec]\n" };
       if (sig === null) return { err: "bash: kill: invalid signal specification\n" };
       let err = "";
@@ -294,6 +312,17 @@
     cmd_systemctl(args) {
       const { flags, operands } = parseOpts(args, []);
       const sub = operands[0];
+      if (!sub && flags.has("failed") || (sub === "list-units" && flags.has("failed"))) {
+        const bad = Object.entries(this.services).filter(([, s]) => s.state === "failed");
+        let out = bad.length ? "  UNIT            LOAD   ACTIVE SUB    DESCRIPTION\n" + bad.map(([n, s]) => "● " + (n + ".service").padEnd(15) + " loaded failed failed " + s.desc).join("\n") + "\n" : "";
+        out += "\nLOAD   = Reflects whether the unit definition was properly loaded.\nACTIVE = The high-level unit activation state, i.e. generalization of SUB.\nSUB    = The low-level unit state, as reported by the underlying type.\n\n" + bad.length + " loaded units listed.\n";
+        return { out };
+      }
+      if (sub === "list-units") {
+        const rows = Object.entries(this.services).map(([n, s]) => "  " + (n + ".service").padEnd(18) + " loaded " + (s.state === "active" ? "active running" : s.state === "failed" ? "failed failed " : "inactive dead   ") + " " + s.desc);
+        return { out: "  UNIT               LOAD   ACTIVE SUB     DESCRIPTION\n" + rows.join("\n") + "\n\n" + rows.length + " loaded units listed.\n" };
+      }
+      if (sub === "get-default") return { out: (this.defaultTarget || "multi-user.target") + "\n" };
       if (sub === "daemon-reload") {
         Object.values(this.services).forEach(s => { s.stale = false; });
         this.log("systemd", "info", "Reloading.");
@@ -310,6 +339,18 @@
         case "status": return { out: this.statusText(name) };
         case "is-active": return { out: s.state + "\n" };
         case "is-enabled": return { out: (s.enabled ? "enabled" : "disabled") + "\n" };
+        case "cat": {
+          const sh = arguments[3];
+          const unit = sh && sh.lookup("/etc/systemd/system/" + name + ".service", true);
+          if (!unit) return { err: "No files found for " + name + ".service.\n", code: 1 };
+          return { out: "# /etc/systemd/system/" + name + ".service\n" + (unit.content || "") };
+        }
+        case "is-failed": return { out: (s.state === "failed" ? "failed" : s.state) + "\n", code: s.state === "failed" ? 0 : 1 };
+        case "reload":
+          if (s.state !== "active") return { err: "Failed to reload " + name + ".service: Unit " + name + ".service is not active.\n", code: 1 };
+          this.log(name, "info", "Reloaded " + s.desc + ".");
+          s.reloads = (s.reloads || 0) + 1;
+          return {};
         case "start":
           if (s.state !== "active") { this.startService(name); this.log(name, "info", `Started ${s.desc}.`); }
           return {};
@@ -353,7 +394,18 @@
     }
 
     cmd_journalctl(args) {
-      const o = parseOpts(args, ["u", "n"]);
+      if (args.includes("--disk-usage")) return { out: "Archived and active journals take up 256.0M in the file system.\n" };
+      if (args.includes("--list-boots")) return { out: " -1 7c1d3a96b0b24c58b3a7f9c2d8e41a05 Tue 2026-10-28 07:58:11 UTC—Wed 2026-10-29 07:59:40 UTC\n  0 b2f8e0a1c4d94c6e8f31a7d5c9e02b44 Wed 2026-10-29 08:00:02 UTC—Wed 2026-10-29 14:30:00 UTC\n" };
+      const o = parseOpts(args.filter((a, i) => !(a === "-b" && /^-?\d+$/.test(args[i + 1] || "")) && !(/^-\d+$/.test(a) && args[i - 1] === "-b")), ["u", "n", "p"]);
+      const bi = args.indexOf("-b");
+      const bootSel = bi === -1 ? null : (/^-?\d+$/.test(args[bi + 1] || "") ? parseInt(args[bi + 1], 10) : 0);
+      const PRIO = { emerg: 0, alert: 1, crit: 2, err: 3, warning: 4, notice: 5, info: 6, debug: 7 };
+      const LEVELPRIO = { error: 3, warn: 4, info: 6, debug: 7 };
+      const wantPrio = o.values.p !== undefined ? (PRIO[o.values.p] !== undefined ? PRIO[o.values.p] : parseInt(o.values.p, 10)) : null;
+      const kernelOnly = o.flags.has("k") || o.flags.has("dmesg");
+      const ui = args.findIndex(a => a === "--until" || a.startsWith("--until="));
+      let untilMin = null;
+      if (ui !== -1) { const rawU = args[ui].includes("=") ? args[ui].split("=")[1] : args[ui + 1]; untilMin = this.parseSince(rawU); if (untilMin === null) return { err: "Failed to parse timestamp: " + rawU + "\n" }; }
       const unitRaw = o.values.u || o.values.unit;
       const unit = unitRaw ? this.unitName(unitRaw) : null;
       let n = o.values.n || o.values.lines;
@@ -365,7 +417,9 @@
         sinceMin = this.parseSince(raw);
         if (sinceMin === null) return { err: `Failed to parse timestamp: ${raw}\n` };
       }
-      let entries = this.journal.filter(j => (!unit || j.unit === unit) && (sinceMin === null || j.ago <= sinceMin));
+      const pool = kernelOnly ? this.kernel.map(k => ({ ago: k.ago, unit: "kernel", pid: null, level: /out of memory|killed process|error/i.test(k.msg) ? "error" : "info", msg: k.msg })) : this.journal;
+      let entries = pool.filter(j => (!unit || j.unit === unit) && (sinceMin === null || j.ago <= sinceMin) && (untilMin === null || j.ago >= untilMin)
+        && (bootSel === null || (j.boot || 0) === bootSel) && (wantPrio === null || (LEVELPRIO[j.level || "info"] !== undefined ? LEVELPRIO[j.level || "info"] : 6) <= wantPrio));
       entries.sort((a, b) => b.ago - a.ago);
       if (n) entries = entries.slice(-n);
       const follow = o.flags.has("f") || o.flags.has("follow");
@@ -399,9 +453,40 @@
     }
 
     // ---------- cron ----------
-    cmd_crontab() {
-      if (!this.cron.length) return { err: `no crontab for ${this.currentUser}\n` };
-      return { out: "# m h  dom mon dow   command\n" + this.cron.join("\n") + "\n" };
+    cmd_crontab(args, flags, stdin, sh) {
+      const a = args[0];
+      const HEADER = "# m h  dom mon dow   command";
+      if (a === "-l") {
+        if (!this.cron.length) return { err: "no crontab for " + this.currentUser + "\n", code: 1 };
+        return { out: HEADER + "\n" + this.cron.join("\n") + "\n" };
+      }
+      if (a === "-r") { this.cron = []; return { out: "" }; }
+      if (a === "-e") { this.cronEdited = true; return { out: "[sandbox: crontab -e opens your editor on the crontab. In scripts use: ( crontab -l ; echo 'schedule command' ) | crontab -]\n" }; }
+      let text;
+      if (a === "-") text = stdin;
+      else { const n = sh && sh.lookup(sh.abs(a), true); if (!n || n.type !== "file") return { err: "crontab: " + a + ": No such file or directory\n", code: 1 }; text = n.content || ""; }
+      const rows = text.replace(/\n$/, "").split("\n").filter(l => l.trim() && l.trim() !== HEADER);
+      const bad = this.validateCron(rows);
+      if (bad) return { err: "crontab: installing new crontab\n\"" + (a === "-" ? "-" : a) + "\":" + bad.line + ": " + bad.msg + "\nerrors in crontab file, can't install.\nDo you want to retry the same edit? (y/n) ", code: 1 };
+      this.cron = rows;
+      return { out: "" };
+    }
+
+    // checks the five time fields (or an @macro) of each non-comment line
+    validateCron(rows) {
+      const ranges = [["minute", 0, 59], ["hour", 0, 23], ["day-of-month", 1, 31], ["month", 1, 12], ["day-of-week", 0, 7]];
+      for (let i = 0; i < rows.length; i++) {
+        const l = rows[i].trim();
+        if (l.startsWith("#") || /^[A-Za-z_]+=/.test(l)) continue;
+        if (/^@(reboot|yearly|annually|monthly|weekly|daily|midnight|hourly)\s+\S/.test(l)) continue;
+        const f = l.split(/\s+/);
+        if (f.length < 6) return { line: i + 1, msg: "bad command" };
+        for (let k = 0; k < 5; k++) {
+          const ok = f[k].split(",").every(part => { const m = /^(\*|\d+(?:-\d+)?)(?:\/(\d+))?$/.exec(part); if (!m) return false; const nums = m[1].split("-").filter(x => x !== "*").map(Number); return nums.every(n => n >= ranges[k][1] && n <= ranges[k][2]); });
+          if (!ok) return { line: i + 1, msg: "bad " + ranges[k][0] };
+        }
+      }
+      return null;
     }
 
     // ---------- users & groups ----------
@@ -411,10 +496,12 @@
         .map(u => `${u.name}:x:${u.uid}:${u.gid}:${u.gecos || ""}:${u.home}:${u.shell}`).join("\n") + "\n";
       const group = [{ name: "root", gid: 0 }, ...this.groups]
         .map(g => `${g.name}:x:${g.gid}:${this.membersOf(g.name).filter(m => !(this.userByName(m) && this.userByName(m).primary === g.name)).join(",")}`).join("\n") + "\n";
-      [["/etc/passwd", passwd], ["/etc/group", group]].forEach(([p, text]) => {
+      const shadow = [{ name: "root", locked: true }, ...this.users].map(u => u.name + ":" + (u.locked ? "!" : u.noPassword ? "" : "$6$rounds=4096$salt$hashedpassword") + ":20015:0:99999:7:::").join("\n") + "\n";
+      [["/etc/passwd", passwd, 0o644, "root", "root"], ["/etc/group", group, 0o644, "root", "root"], ["/etc/shadow", shadow, 0o640, "root", "shadow"]].forEach(([p, text, mode, owner, grp]) => {
         let n = sh.lookup(p);
         if (!n) { sh.mkdirp("/etc"); n = sh.createFile(p, text); }
         n.content = text; n.size = text.length; n.sizeDeclared = false;
+        if (p === "/etc/shadow" || n.owner === "ubuntu") { n.mode = mode; n.owner = owner; n.group = grp; }
       });
     }
 
@@ -442,6 +529,50 @@
       this.syncAccountFiles(sh);
       return {};
     }
+
+    cmd_userdel(args, flags, stdin, sh) {
+      const o = parseOpts(args, []);
+      const name = o.operands[o.operands.length - 1];
+      const u = this.userByName(name);
+      if (!name) return { err: "Usage: userdel [options] LOGIN\n", code: 2 };
+      if (!u) return { err: "userdel: user '" + name + "' does not exist\n", code: 6 };
+      this.users = this.users.filter(x => x.name !== name);
+      if (!this.users.some(x => x.primary === u.primary)) this.groups = this.groups.filter(g => g.name !== u.primary);
+      if (o.flags.has("r") && sh) { const h = sh.lookup(sh.abs(u.home)); if (h) sh.lookup(sh.abs(u.home + "/..")).children.delete(sh.abs(u.home).split("/").pop()); }
+      this.syncAccountFiles(sh);
+      return {};
+    }
+
+    cmd_groupdel(args, flags, stdin, sh) {
+      const name = args.filter(a => !a.startsWith("-")).pop();
+      const g = this.groupByName(name);
+      if (!name) return { err: "Usage: groupdel [options] GROUP\n", code: 2 };
+      if (!g) return { err: "groupdel: group '" + name + "' does not exist\n", code: 6 };
+      const owner = this.users.find(u => u.primary === name);
+      if (owner) return { err: "groupdel: cannot remove the primary group of user '" + owner.name + "'\n", code: 8 };
+      this.groups = this.groups.filter(x => x.name !== name);
+      this.users.forEach(u => { u.groups = (u.groups || []).filter(x => x !== name); });
+      this.syncAccountFiles(sh);
+      return {};
+    }
+
+    cmd_passwd(args, flags, stdin, sh) {
+      const o = parseOpts(args, []);
+      const name = o.operands[0] || this.currentUser;
+      const u = this.userByName(name);
+      if (!u) return { err: "passwd: user '" + name + "' does not exist\n", code: 1 };
+      if (o.flags.has("S")) return { out: name + " " + (u.locked ? "L" : "P") + " 2026-10-29 0 99999 7 -1\n" };
+      if (name !== this.currentUser && !(sh && sh.asRoot)) return { err: "passwd: You may not view or modify password information for " + name + ".\n", code: 1 };
+      if (o.flags.has("l")) { u.locked = true; this.syncAccountFiles(sh); return { out: "passwd: password expiry information changed.\n" }; }
+      if (o.flags.has("u")) { u.locked = false; this.syncAccountFiles(sh); return { out: "passwd: password expiry information changed.\n" }; }
+      if (o.flags.has("d")) { u.locked = false; u.noPassword = true; this.syncAccountFiles(sh); return { out: "passwd: password expiry information changed.\n" }; }
+      if (o.flags.has("e")) { u.expired = true; return { out: "passwd: password expiry information changed.\n" }; }
+      return { out: "New password: \nRetype new password: \npasswd: password updated successfully\n" };
+    }
+
+    cmd_who() { return { out: "ubuntu   pts/0        2026-10-29 08:12 (203.0.113.7)\n" }; }
+    cmd_w() { return { out: " 14:30:00 up  6:30,  1 user,  load average: 0.08, 0.03, 0.01\nUSER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT\nubuntu   pts/0    203.0.113.7      08:12    0.00s  0.04s  0.00s w\n" }; }
+    cmd_last() { return { out: "ubuntu   pts/0        203.0.113.7      Wed Oct 29 08:12   still logged in\nreboot   system boot  5.15.0-1052-aws  Wed Oct 29 08:00   still running\n\nwtmp begins Wed Oct 29 08:00:00 2026\n" }; }
 
     cmd_groupadd(args, flags, stdin, sh) {
       const name = args.filter(a => !a.startsWith("-")).pop();
@@ -472,6 +603,7 @@
     userGroupNames(u) { return [u.primary, ...(u.groups || [])]; }
 
     cmd_groups(args) {
+      if (arguments[3] && arguments[3].asRoot && !args[0]) return { out: "root\n" };
       const target = args[0] || this.currentUser;
       const u = this.userByName(target);
       if (!u) return { err: `groups: '${target}': no such user\n` };
@@ -479,6 +611,13 @@
     }
 
     cmd_id(args) {
+      const sh = arguments[3];
+      if (sh && sh.asRoot && !args.filter(x => !x.startsWith("-"))[0]) {
+        const f = parseOpts(args, []).flags;
+        if (f.has("G") && f.has("n")) return { out: "root\n" };
+        if (f.has("u") || f.has("g")) return { out: "0\n" };
+        return { out: "uid=0(root) gid=0(root) groups=0(root)\n" };
+      }
       const { flags, operands } = parseOpts(args, []);
       const target = operands[0] || this.currentUser;
       const u = this.userByName(target);

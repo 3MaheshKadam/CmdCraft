@@ -56,6 +56,14 @@
       return { out: parts.join(" ") + "\n" };
     });
     reg("hostname", hasInfo, function () { return { out: sys.info.hostname + "\n" }; });
+    reg("hostnamectl", hasInfo, function () {
+      const i = sys.info;
+      return { out: " Static hostname: " + i.hostname + "\n       Icon name: computer-vm\n         Chassis: vm\n      Machine ID: ec2b7f1e0e4a4a6f9a4b1c2d3e4f5a6b\n         Boot ID: 7c1d3a96b0b24c58b3a7f9c2d8e41a05\n  Virtualization: amazon\nOperating System: " + i.osName + "\n          Kernel: Linux " + i.kernel + "\n    Architecture: " + (i.arch === "x86_64" ? "x86-64" : i.arch) + "\n" };
+    });
+    reg("systemd-analyze", hasInfo, function (args) {
+      if (args[0] === "blame") return { out: "9.812s cloud-init-local.service\n3.201s apt-daily.service\n1.540s snapd.service\n1.204s networkd-dispatcher.service\n  842ms nginx.service\n" };
+      return { out: "Startup finished in 2.512s (kernel) + 14.337s (userspace) = 16.849s \ngraphical.target reached after 14.201s in userspace.\n" };
+    }, args => args.length === 0 || args[0] === "blame");
 
     // ---------- networking ----------
     reg("ip", hasNet, function (args) {
@@ -135,13 +143,21 @@
     // ---------- storage ----------
     reg("df", hasDisks, function (args, flags) {
       const inodes = flags.has("i");
+      if (flags.has("T")) {
+        sys.lastDf = { inodes };
+        return { out: table([["Filesystem", "Type", "Size", "Used", "Avail", "Use%", "Mounted on"], ...sys.disks.filesystems.map(f => [f.fs, f.type || (f.fs === "tmpfs" ? "tmpfs" : "ext4"), f.size, f.used, f.avail, f.pct + "%", f.mount])], 2) };
+      }
       sys.lastDf = { inodes };
       const fs = sys.disks.filesystems;
       if (inodes) {
         return { out: table([["Filesystem", "Inodes", "IUsed", "IFree", "IUse%", "Mounted on"], ...fs.map(f => [f.fs, f.inodes[0], f.inodes[1], f.inodes[0] - f.inodes[1], Math.round(100 * f.inodes[1] / f.inodes[0]) + "%", f.mount])], 2) };
       }
       return { out: table([["Filesystem", "Size", "Used", "Avail", "Use%", "Mounted on"], ...fs.map(f => [f.fs, f.size, f.used, f.avail, f.pct + "%", f.mount])], 2) };
-    }, args => args.every(a => /^-(h|i|hi|ih)$/.test(a)));
+    }, args => args.every(a => /^-[hiT]+$/.test(a)));
+    reg("mount", hasDisks, function () {
+      sys.lastMountList = true;
+      return { out: sys.disks.mounts.map(m => m.source + " on " + m.target + " type " + m.fstype + " (" + m.options + ")").join("\n") + "\n" };
+    }, args => args.length === 0 || args.every(a => a.startsWith("-") && !/^-[aoOrw]$/.test(a) || a === "ext4"));
 
     reg("du", hasDisks, function (args, flags) {
       const target = args.filter(a => !a.startsWith("-"))[0] || ".";

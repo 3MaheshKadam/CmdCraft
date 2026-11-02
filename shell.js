@@ -12,7 +12,7 @@
   const KNOWN = new Set([
     "pwd", "cd", "ls", "cat", "mkdir", "rmdir", "touch", "rm", "cp", "mv", "chmod", "chown",
     "ln", "echo", "whoami", "head", "tail", "wc", "grep", "sort", "uniq", "tee", "df",
-    "find", "awk", "sed", "cut", "stat", "namei", "tar", "gzip", "gunzip"
+    "find", "awk", "sed", "cut", "stat", "namei", "tar", "gzip", "gunzip", "sudo"
   ]);
 
   // ---------- helpers ----------
@@ -43,8 +43,12 @@
     if (!p || p.length < 10) return isDir ? 0o755 : 0o644;
     let mode = 0;
     for (let i = 0; i < 9; i++) {
-      if (p[i + 1] !== "-" && p[i + 1] !== "S" && p[i + 1] !== "T") mode |= 1 << (8 - i);
+      const ch = p[i + 1];
+      if (ch !== "-" && ch !== "S" && ch !== "T") mode |= 1 << (8 - i);
     }
+    if (p[3] === "s" || p[3] === "S") mode |= 0o4000;
+    if (p[6] === "s" || p[6] === "S") mode |= 0o2000;
+    if (p[9] === "t" || p[9] === "T") mode |= 0o1000;
     return mode;
   }
 
@@ -53,7 +57,11 @@
     const m = node.mode;
     let s = t;
     "rwxrwxrwx".split("").forEach((ch, i) => { s += (m & (1 << (8 - i))) ? ch : "-"; });
-    return s;
+    const chars = s.split("");
+    if (m & 0o4000) chars[3] = (m & 0o100) ? "s" : "S";
+    if (m & 0o2000) chars[6] = (m & 0o010) ? "s" : "S";
+    if (m & 0o1000) chars[9] = (m & 0o001) ? "t" : "T";
+    return chars.join("");
   }
 
   function normalize(path) {
@@ -79,7 +87,7 @@
   function tokenize(line, env) {
     const tokens = [];
     let i = 0;
-    const ops = ["2>>", "2>&1", "&>", "2>", ">>", ">", "&&", ";", "|"];
+    const ops = ["2>>", "2>&1", "&>", "2>", ">>", ">", "&&", "||", "<<", "<", ";", "|", "&"];
     while (i < line.length) {
       const ch = line[i];
       if (/\s/.test(ch)) { i++; continue; }
@@ -121,7 +129,12 @@
   }
 
   function expandVars(s, env) {
-    return s.replace(/\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?/g, (m, name) => (name in env ? env[name] : ""));
+    // ${VAR}, ${VAR:-default}, $VAR and the specials $? $$ $# $@ $* $0-$9
+    return s.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}|\$([A-Za-z_][A-Za-z0-9_]*|\?|\$|#|@|\*|[0-9])/g, (m, braced, dflt, plain) => {
+      const name = braced || plain;
+      const v = name in env ? env[name] : "";
+      return (v === "" && dflt !== undefined) ? dflt : v;
+    });
   }
 
   function globToRegex(pattern) {
@@ -135,10 +148,21 @@
       setup = setup || {};
       this.root = { name: "/", type: "dir", mode: 0o755, owner: "root", group: "root", children: new Map(), mtime: nowStamp() };
       this.cwd = "/";
+      this.mkdirp(HOME);   // the user's home always exists, so cd ~ works wherever a scenario starts
       this.oldpwd = null;
       this.commandLog = [];
       this.lastSig = null;
       this.setup = setup;
+      this.vars = {};
+      this.lastCode = 0;
+      this.positional = ["bash"];
+      this.pipefail = false;
+      this.jobs = [];
+      this.depth = 0;
+      this.capturing = 0;
+      this.asRoot = false;
+      this.pipedOut = false;
+      this.pendingErr = "";
       this.sys = null;
       this.follow = null;
       this.hits = new Set();
@@ -160,9 +184,10 @@
         const abs = this.abs(p);
         let n = this.lookup(abs);
         if (!n) { this.mkdirp(dirname(abs)); n = this.createFile(abs); }
-        if (n) { n.content = content; if (!n.sizeDeclared) n.size = content.length; }
+        if (n) { n.content = content; if (!n.sizeDeclared) n.size = content.length; delete n.age; }   // seeded files already existed
       });
       Object.entries(setup.nodes || {}).forEach(([np, spec]) => this.seedNode(np, spec));
+      this.initEnv(setup.env);
       if (setup.system && root.SystemState) { this.sys = new root.SystemState(setup.system); this.sys.syncAccountFiles(this); }
       this.snapshotSignature();
     }
@@ -191,7 +216,7 @@
         if (child.owner) { const [u, g] = String(child.owner).split(":"); n.owner = u; n.group = g || u; }
         if (isLink) n.target = target || "";
         if (isDir) n.children = new Map();
-        if (!isDir && !isLink) { n.size = parseSize(child.size); n.sizeDeclared = !!child.size; }
+        if (!isDir && !isLink) { n.size = parseSize(child.size); n.sizeDeclared = !!child.size; if (typeof child.content === "string") { n.content = child.content; if (!n.sizeDeclared) n.size = child.content.length; } }
         this.lookup(absPath).children.set(name, n);
         if (child.isCurrent) this.cwd = childPath;
         if (isDir) this.importNode(child, childPath);
@@ -202,7 +227,9 @@
     seedNode(p, spec) {
       const a = normalize(p);
       let n;
+      const existing = this.lookup(a);
       if (spec.dir) { n = this.mkdirp(a); }
+      else if (existing && existing.type === "file" && spec.target === undefined) { n = existing; if (spec.content !== undefined) { n.content = spec.content; if (!n.sizeDeclared) n.size = spec.content.length; } }
       else {
         this.mkdirp(dirname(a));
         const parent = this.lookup(dirname(a));
@@ -210,13 +237,14 @@
         if (spec.target !== undefined) { n.target = spec.target; n.mode = 0o777; }
         parent.children.set(n.name, n);
       }
+      if (spec.age !== undefined) n.age = spec.age;
       if (spec.owner) n.owner = spec.owner;
       if (spec.group) n.group = spec.group;
       if (spec.mode !== undefined) n.mode = spec.mode;
-      if (spec.content !== undefined && n.type === "file") n.size = spec.content.length;
+      if (spec.content !== undefined && n.type === "file" && !n.sizeDeclared) n.size = spec.content.length;
       if (spec.size) { n.size = parseSize(spec.size); n.sizeDeclared = true; }
       if (spec.archive) {
-        n.archive = { z: !!spec.archive.z, entries: spec.archive.entries.map(e => ({ path: e.path, isDir: !!e.isDir, node: e.isDir ? null : { content: e.content === undefined ? null : e.content, size: parseSize(e.size) || (e.content || "").length, mode: 0o644, owner: DEFAULT_OWNER, group: DEFAULT_GROUP } })) };
+        n.archive = { z: !!spec.archive.z, zip: !!spec.archive.zip, entries: spec.archive.entries.map(e => ({ path: e.path, isDir: !!e.isDir, node: e.isDir ? null : { content: e.content === undefined ? null : e.content, size: parseSize(e.size) || (e.content || "").length, mode: 0o644, owner: DEFAULT_OWNER, group: DEFAULT_GROUP } })) };
       }
       return n;
     }
@@ -263,8 +291,8 @@
       const parent = this.lookup(dirname(absPath), true);
       if (!parent || parent.type !== "dir") return null;
       const node = {
-        name: basename(absPath), type: "file", mode: 0o644, owner: DEFAULT_OWNER, group: DEFAULT_GROUP,
-        content: content || "", size: (content || "").length, mtime: nowStamp()
+        name: basename(absPath), type: "file", mode: 0o666 & ~(this.umaskVal === undefined ? 0o022 : this.umaskVal), owner: DEFAULT_OWNER, group: DEFAULT_GROUP,
+        content: content || "", size: (content || "").length, mtime: nowStamp(), age: 0
       };
       parent.children.set(node.name, node);
       return node;
@@ -297,27 +325,173 @@
     // --- execution ---
     // Returns { handled, out, err }. handled=false means the line uses something this shell doesn't simulate;
     // in that case nothing is executed or changed.
-    exec(line) {
-      let tokens;
-      const env = { HOME, USER: DEFAULT_OWNER, PWD: this.cwd, LOGNAME: DEFAULT_OWNER };
-      try { tokens = tokenize(line, env); } catch (e) { return { handled: true, out: "", err: "bash: syntax error: " + e.message + "\n" }; }
-      if (!tokens.length) return { handled: true, out: "", err: "" };
+    // ---- shell variables ----
+    initEnv(extra) {
+      const defaults = { HOME, USER: DEFAULT_OWNER, LOGNAME: DEFAULT_OWNER, SHELL: "/bin/bash", LANG: "en_US.UTF-8", TERM: "xterm-256color",
+        PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" };
+      Object.entries(defaults).forEach(([k, v]) => { this.vars[k] = { value: v, exported: true }; });
+      this.vars.HOSTNAME = { value: "ip-172-31-42-12", exported: false };
+      Object.entries(extra || {}).forEach(([k, v]) => { this.vars[k] = typeof v === "object" ? { value: v.value, exported: !!v.exported } : { value: String(v), exported: true }; });
+    }
 
-      // Split into command lists (;, &&) of pipelines (|) of simple commands.
-      const lists = [[[]]];
-      tokens.forEach(tok => {
-        if (tok.t === "op" && (tok.v === ";" || tok.v === "&&")) lists.push([[]]);
-        else if (tok.t === "op" && tok.v === "|") lists[lists.length - 1].push([]);
-        else lists[lists.length - 1][lists[lists.length - 1].length - 1].push(tok);
-      });
+    setVar(name, value, exported) {
+      const cur = this.vars[name];
+      this.vars[name] = { value: String(value), exported: exported !== undefined ? exported : (cur ? cur.exported : !!(this.opts && this.opts.a)) };
+    }
+
+    envObject() {
+      const o = {};
+      Object.entries(this.vars).forEach(([k, v]) => { o[k] = v.value; });
+      o.PWD = this.cwd;
+      o["?"] = String(this.lastCode || 0);
+      o["$"] = "2300";
+      this.positional.forEach((v, i) => { o[String(i)] = v; });
+      o["#"] = String(Math.max(0, this.positional.length - 1));
+      o["@"] = this.positional.slice(1).join(" ");
+      o["*"] = o["@"];
+      return o;
+    }
+
+    // ---- $(...), backticks and $((...)) ----
+    substitute(line) {
+      let out = "", i = 0, q = null;
+      while (i < line.length) {
+        const c = line[i];
+        if (q === "'") { out += c; if (c === "'") q = null; i++; continue; }
+        if (c === "'" && q !== '"') { q = "'"; out += c; i++; continue; }
+        if (c === '"') { q = q === '"' ? null : '"'; out += c; i++; continue; }
+        if (c === "$" && line[i + 1] === "(") {
+          const arith = line[i + 2] === "(";
+          let depth = 0, j = i + 1;
+          for (; j < line.length; j++) { if (line[j] === "(") depth++; else if (line[j] === ")") { depth--; if (depth === 0) break; } }
+          if (depth !== 0) throw new Error("unterminated command substitution");
+          out += arith ? String(this.arith(line.slice(i + 3, j - 1))) : this.captureCmd(line.slice(i + 2, j));
+          i = j + 1; continue;
+        }
+        if (c === "`") {
+          const j = line.indexOf("`", i + 1);
+          if (j < 0) throw new Error("unterminated backtick");
+          out += this.captureCmd(line.slice(i + 1, j));
+          i = j + 1; continue;
+        }
+        out += c; i++;
+      }
+      return out;
+    }
+
+    captureCmd(inner) {
+      const keep = { le: this.lastExec, hits: this.hits, follow: this.follow };
+      this.capturing++;
+      let r;
+      try { r = this.exec(inner); } finally { this.capturing--; }
+      this.lastExec = keep.le; this.hits = keep.hits; this.follow = keep.follow;
+      if (r && r.err) this.pendingErr += r.err;
+      return ((r && r.out) || "").replace(/\n+$/, "");
+    }
+
+    // small arithmetic evaluator for $(( )) and (( )): + - * / % ** parentheses, comparisons, && ||
+    arith(expr) {
+      const env = this.envObject();
+      const src = expr.replace(/\$?([A-Za-z_][A-Za-z0-9_]*)/g, (m, n) => (n in env && /^-?\d+$/.test(env[n]) ? env[n] : "0"));
+      const toks = src.match(/\d+|\*\*|<=|>=|==|!=|&&|\|\||[-+*\/%()<>!]/g) || [];
+      let pos = 0;
+      const peek = () => toks[pos], next = () => toks[pos++];
+      const prim = () => { const t = next(); if (t === "(") { const v = orr(); next(); return v; } if (t === "-") return -prim(); if (t === "+") return prim(); if (t === "!") return prim() ? 0 : 1; return parseInt(t, 10) || 0; };
+      const pow = () => { let v = prim(); while (peek() === "**") { next(); v = Math.pow(v, prim()); } return v; };
+      const mul = () => { let v = pow(); while (["*", "/", "%"].includes(peek())) { const o = next(), r = pow(); v = o === "*" ? v * r : o === "/" ? (r ? Math.trunc(v / r) : 0) : (r ? v % r : 0); } return v; };
+      const add = () => { let v = mul(); while (["+", "-"].includes(peek())) { const o = next(), r = mul(); v = o === "+" ? v + r : v - r; } return v; };
+      const cmp = () => { let v = add(); while (["<", ">", "<=", ">=", "==", "!="].includes(peek())) { const o = next(), r = add(); v = ({ "<": v < r, ">": v > r, "<=": v <= r, ">=": v >= r, "==": v === r, "!=": v !== r })[o] ? 1 : 0; } return v; };
+      const andd = () => { let v = cmp(); while (peek() === "&&") { next(); const r = cmp(); v = v && r ? 1 : 0; } return v; };
+      const orr = () => { let v = andd(); while (peek() === "||") { next(); const r = andd(); v = v || r ? 1 : 0; } return v; };
+      return orr();
+    }
+
+    // Returns { handled, out, err, code }. handled=false means the line uses something this shell doesn't simulate;
+    // in that case nothing is executed or changed.
+    exec(line) {
+      if (this.scriptHook && this.scriptHook.isCompound(line)) return this.scriptHook.run(this, line);
+      this.depth++;
+      try { return this.execLine(line); } finally { this.depth--; }
+    }
+
+    // Split a line into lists joined by ; && || (and newlines), each a pipeline of stage texts, without expanding anything yet:
+    // variables, $? and $(...) must be expanded when each command runs, not before the earlier ones have.
+    splitTop(line) {
+      const lists = [{ joiner: ";", stages: [""] }];
+      let q = null, i = 0, background = false, depth = 0;
+      const cur = () => lists[lists.length - 1];
+      const add = ch => { const st = cur().stages; st[st.length - 1] += ch; };
+      while (i < line.length) {
+        const c = line[i];
+        if (q) {
+          add(c);
+          if (c === "\\" && q === '"' && i + 1 < line.length) { add(line[i + 1]); i += 2; continue; }
+          if (c === q) q = null;
+          i++; continue;
+        }
+        if (c === "\\" && i + 1 < line.length) { add(c); add(line[i + 1]); i += 2; continue; }
+        if (c === "#" && (i === 0 || /\s/.test(line[i - 1]))) { while (i < line.length && line[i] !== "\n") i++; continue; }   // comment (also the #! line)
+        if (c === "'" || c === '"' || c === "`") { q = c; add(c); i++; continue; }
+        if (c === "$" && line[i + 1] === "(") {
+          let d = 0, j = i + 1;
+          for (; j < line.length; j++) { if (line[j] === "(") d++; else if (line[j] === ")") { d--; if (d === 0) break; } }
+          if (d !== 0) return { error: "unterminated command substitution" };
+          for (const ch of line.slice(i, j + 1)) add(ch);
+          i = j + 1; continue;
+        }
+        if (c === "(") { depth++; add(c); i++; continue; }
+        if (c === ")") { depth = Math.max(0, depth - 1); add(c); i++; continue; }
+        if (depth === 0 && (c === ";" || c === "\n")) { lists.push({ joiner: ";", stages: [""] }); i++; continue; }
+        if (c === "&" && depth === 0) {
+          if (line[i + 1] === "&") { lists.push({ joiner: "&&", stages: [""] }); i += 2; continue; }
+          if (line[i - 1] === ">" || line[i + 1] === ">" || line[i - 1] === "<") { add(c); i++; continue; }   // 2>&1, &>, >&
+          cur().bg = true;
+          if (line.slice(i + 1).trim() === "") { background = true; i++; continue; }
+          lists.push({ joiner: ";", stages: [""] }); i++; continue;
+        }
+        if (c === "|" && depth === 0) {
+          if (line[i + 1] === "|") { lists.push({ joiner: "||", stages: [""] }); i += 2; continue; }
+          cur().stages.push(""); i++; continue;
+        }
+        add(c); i++;
+      }
+      if (q) return { error: "unterminated quote" };
+      return { lists: lists.filter(L => L.stages.some(t => t.trim())), background };
+    }
+
+    // for the pre-check only: replace $(...) / backticks with a placeholder so nothing runs yet
+    dryText(t) {
+      let out = "", i = 0, q = null;
+      while (i < t.length) {
+        const c = t[i];
+        if (q === "'") { out += c; if (c === "'") q = null; i++; continue; }
+        if (c === "'" && q !== '"') { q = "'"; out += c; i++; continue; }
+        if (c === '"') { q = q === '"' ? null : '"'; out += c; i++; continue; }
+        if (c === "$" && t[i + 1] === "(") { let d = 0, j = i + 1; for (; j < t.length; j++) { if (t[j] === "(") d++; else if (t[j] === ")") { d--; if (d === 0) break; } } out += "X"; i = j + 1; continue; }
+        if (c === "`") { const j = t.indexOf("`", i + 1); out += "X"; i = j < 0 ? t.length : j + 1; continue; }
+        out += c; i++;
+      }
+      return out;
+    }
+
+    execLine(line) {
+      const parsed = this.splitTop(line);
+      if (parsed.error) return { handled: true, out: "", err: "bash: syntax error: " + parsed.error + "\n", code: 2 };
+      const lists = parsed.lists, background = parsed.background;
+      if (!lists.length) return { handled: true, out: "", err: "", code: 0 };
 
       // Pre-check that every command is one we simulate, so a partly-unknown line changes nothing.
-      for (const pipeline of lists) {
-        for (const stage of pipeline) {
-          const words = stage.filter(t => t.t === "word").map(t => t.v);
-          let name = words[0] === "sudo" ? words[1] : words[0];
+      for (const L of lists) {
+        for (const stageText of L.stages) {
+          if (stageText.trim().startsWith("(") && stageText.trim().endsWith(")")) continue;   // ( group ): checked when it runs
+          let toks;
+          try { toks = tokenize(this.dryText(stageText), this.envObject()); } catch (e) { return { handled: true, out: "", err: "bash: syntax error: " + e.message + "\n", code: 2 }; }
+          let words = toks.filter(t => t.t === "word").map(t => t.v);
+          while (words.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[0])) words = words.slice(1);
+          if (!words.length) { if (!toks.length) return { handled: false }; continue; }   // pure assignment
+          const name = words[0] === "sudo" && !(words[1] || "").startsWith("-") ? words[1] : words[0];
           if (!name) return { handled: false };
-          if (!KNOWN.has(name) && !(this.sys && this.sys.handles(name))) return { handled: false };
+          if (!KNOWN.has(name) && !(this.sys && this.sys.handles(name)) && !name.includes("/")) return { handled: false };
           if (name === "df" && !(this.sys && this.sys.handles("df")) && words.some(w => w.startsWith("-") && !/^-[hT]*$/.test(w))) return { handled: false };
           if (!this.supported(name, words.slice(words.indexOf(name) + 1))) return { handled: false };
         }
@@ -325,32 +499,66 @@
 
       let out = "", err = "";
       const logStart = this.commandLog.length;
-      const sysBefore = this.sys ? this.sys.beginExec() : null;
-      this.follow = null;
-      this.hits = new Set(); this.lastStat = null; this.lastNamei = null; this.lastArchive = null;
-      if (this.sys) this.sys.followRequest = null;
-      for (const pipeline of lists) {
-        let stdin = "";
-        for (let s = 0; s < pipeline.length; s++) {
-          const res = this.runSimple(pipeline[s], stdin);
+      const sysBefore = this.depth === 1 && this.sys ? this.sys.beginExec() : null;
+      if (this.depth === 1) {
+        this.follow = null;
+        this.hits = new Set(); this.lastStat = null; this.lastNamei = null; this.lastArchive = null;
+        if (this.sys) this.sys.followRequest = null;
+      }
+      let prev = this.lastCode || 0;
+      let exiting = null;
+      for (const L of lists) {
+        if (L.joiner === "&&" && prev !== 0) continue;
+        if (L.joiner === "||" && prev === 0) continue;
+        let stdin = "", codes = [];
+        for (let st = 0; st < L.stages.length; st++) {
+          const grouped = L.stages[st].trim();
+          if (grouped.startsWith("(") && grouped.endsWith(")")) {   // ( cmd1 ; cmd2 ) | next : a group whose combined output feeds the pipe
+            const r = this.exec(grouped.slice(1, -1));
+            stdin = r.out || ""; err += r.err || ""; codes.push(r.code || 0);
+            if (st === L.stages.length - 1) out += stdin;
+            this.lastCode = r.code || 0;
+            continue;
+          }
+          let toks;
+          try { toks = tokenize(this.substitute(L.stages[st]), this.envObject()); }
+          catch (e) { err += "bash: syntax error: " + e.message + "\n"; codes.push(2); continue; }
+          const res = this.runSimple(toks, stdin, { piped: st < L.stages.length - 1 });
           stdin = res.out;
           err += res.err;
-          if (s === pipeline.length - 1) out += res.out;
+          codes.push(res.code);
+          if (res.exit !== undefined) exiting = res.exit;
+          if (st === L.stages.length - 1) out += res.out;
+          this.lastCode = res.code;
         }
+        prev = this.pipefail ? (codes.slice().reverse().find(c => c !== 0) || 0) : codes[codes.length - 1];
+        this.lastCode = prev;
+        if (L.bg) {
+          const id = this.jobs.length ? Math.max(...this.jobs.map(j => j.id)) + 1 : 1;
+          const job = { id, pid: 3100 + id * 7, cmd: L.stages.map(t => t.trim()).join(" | "), state: "Running" };
+          this.jobs.push(job);
+          if (this.syncJobProcess) this.syncJobProcess(job, false);
+          out += "[" + id + "] " + job.pid + "\n";
+          this.lastCode = 0; prev = 0;
+        }
+        if (exiting !== null) break;
       }
-      if (this.sys) {
+
+      if (this.depth === 1 && this.sys) {
         this.sys.finishExec(sysBefore);
         if (this.sys.followRequest) {
           const unit = this.sys.followRequest.unit;
           this.follow = { kind: "journal", unit, next: () => this.sys.liveEntry(unit) };
         }
       }
-      this.lastExec = { line, cmds: this.commandLog.slice(logStart), out, err };
-      return { handled: true, out, err };
+      if (this.depth === 1 && this.pendingErr) { err = this.pendingErr + err; this.pendingErr = ""; }
+      if (this.depth === 1) this.lastExec = { line, cmds: this.commandLog.slice(logStart), out, err };
+      return { handled: true, out, err, code: prev, exit: exiting === null ? undefined : exiting };
     }
 
     // Syntax each text tool understands; anything else is left to the scenario's own matcher.
     supported(name, args) {
+      if (VirtualShell.supports[name]) return VirtualShell.supports[name].call(this, args);
       if (this.sys && this.sys.handles(name)) return this.sys.supported(name, args);
       if (name === "awk") {
         const rest = [];
@@ -373,7 +581,7 @@
       return true;
     }
 
-    runSimple(stage, stdin) {
+    runSimple(stage, stdin, opts) {
       // Pull redirections out of the stage.
       const words = [];
       const redirs = [];
@@ -381,6 +589,7 @@
         const tok = stage[i];
         if (tok.t === "op") {
           if (tok.v === "2>&1") { redirs.push({ op: "2>&1" }); continue; }
+          if (tok.v === "<<") { i++; continue; }
           const target = stage[i + 1];
           if (target && target.t === "word") { redirs.push({ op: tok.v, file: target.v }); i++; }
         } else words.push(tok);
@@ -390,7 +599,8 @@
       let argv = [];
       words.forEach(w => {
         if (w.glob) {
-          const dir = this.lookup(this.abs(dirname(w.v.includes("/") ? w.v : "./" + w.v)), true);
+          const full = this.abs(w.v);
+          const dir = this.lookup(dirname(full), true);
           const re = globToRegex(basename(w.v));
           const matches = dir && dir.type === "dir"
             ? [...dir.children.keys()].filter(k => re.test(k) && (!k.startsWith(".") || basename(w.v).startsWith("."))).sort()
@@ -402,7 +612,17 @@
         } else argv.push(w.v);
       });
 
-      if (argv[0] === "sudo") argv = argv.slice(1);
+      // leading VAR=value words: plain assignment, or a prefix that applies to this one command
+      const assigns = [];
+      while (argv.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(argv[0])) assigns.push(argv.shift());
+      if (!argv.length) {
+        assigns.forEach(a => { const eq = a.indexOf("="); this.setVar(a.slice(0, eq), a.slice(eq + 1)); });
+        return { out: "", err: "", code: 0 };
+      }
+      const sudoed = argv[0] === "sudo" && !(argv[1] || "").startsWith("-");
+      const restore = assigns.map(a => { const eq = a.indexOf("="), n = a.slice(0, eq); const old = this.vars[n]; this.setVar(n, a.slice(eq + 1), true); return [n, old]; });
+      if (sudoed) argv = argv.slice(1);
+      this.asRoot = sudoed;
       const name = argv[0];
       const args = argv.slice(1);
       const flags = new Set();
@@ -418,11 +638,25 @@
       });
       this.commandLog.push({ name, flags, args });
 
+      this.pipedOut = !!(opts && opts.piped) || this.capturing > 0 || redirs.some(r => r.op === ">" || r.op === ">>" || r.op === "&>");
       const fn = this["cmd_" + name];
       let res;
-      if (this.sys && this.sys.handles(name)) res = this.sys.command(name).call(this.sys, args, flags, stdin, this);
+      const inRedir = redirs.find(r => r.op === "<");
+      if (inRedir) {
+        const n = this.lookup(this.abs(inRedir.file), true);
+        if (!n || n.type !== "file") { restore.forEach(([n2, old]) => { if (old) this.vars[n2] = old; else delete this.vars[n2]; }); return { out: "", err: "bash: " + inRedir.file + ": No such file or directory\n", code: 1 }; }
+        stdin = n.content === null ? "" : n.content;
+      }
+      const hook = VirtualShell.intercept && VirtualShell.intercept[name];
+      const pre = hook ? hook.call(this, args, flags, stdin) : null;
+      if (pre) res = pre;
+      else if (name === "id" && !(this.sys && this.sys.handles("id"))) res = { out: this.asRoot ? "uid=0(root) gid=0(root) groups=0(root)\n" : "uid=1000(ubuntu) gid=1000(ubuntu) groups=1000(ubuntu)\n" };
+      else if (this.sys && this.sys.handles(name)) res = this.sys.command(name).call(this.sys, args, flags, stdin, this);
       else if (fn) res = fn.call(this, args, flags, stdin);
+      else if (name.includes("/") || name.startsWith(".")) res = this.execPath(name, args);
       else res = { out: "", err: "" };
+      restore.forEach(([n2, old]) => { if (old) this.vars[n2] = old; else delete this.vars[n2]; });
+      const code = res.code !== undefined ? res.code : (res.err ? 1 : 0);
       let out = res.out || "", err = res.err || "";
 
       // Apply redirections.
@@ -440,7 +674,16 @@
         }
       });
       if (errToOut && !redirs.some(r => r.op === ">" || r.op === ">>")) { out += err; err = ""; }
-      return { out, err };
+      return { out, err, code, exit: res.exit };
+    }
+
+    // ./deploy.sh or /opt/app/run.sh: the file must exist and have the execute bit, exactly like a real shell
+    execPath(name, args) {
+      const n = this.lookup(this.abs(name), true);
+      if (!n) return { err: "bash: " + name + ": No such file or directory\n", code: 127 };
+      if (n.type === "dir") return { err: "bash: " + name + ": Is a directory\n", code: 126 };
+      if (!(n.mode & 0o111)) return { err: "bash: " + name + ": Permission denied\n", code: 126 };
+      return this.runScriptFile(name, args);
     }
 
     writeTo(file, text, append) {
@@ -461,12 +704,19 @@
         node.sizeDeclared = false;
       }
       node.mtime = nowStamp();
+      node.age = 0;
       return "";
     }
 
     // --- commands ---
+    cmd_sudo(args) {
+      if (args[0] === "-l") return { out: "Matching Defaults entries for ubuntu on ip-172-31-42-12:\n    env_reset, mail_badpass, secure_path=/usr/local/sbin\\:/usr/local/bin\\:/usr/sbin\\:/usr/bin\\:/sbin\\:/bin\n\nUser ubuntu may run the following commands on ip-172-31-42-12:\n    (ALL : ALL) ALL\n    (ALL) NOPASSWD: ALL\n" };
+      if (args[0] === "-v") return { out: "" };
+      return { out: "", err: "sudo: a command is required\n", code: 1 };
+    }
+
     cmd_pwd() { return { out: this.cwd + "\n" }; }
-    cmd_whoami() { return { out: DEFAULT_OWNER + "\n" }; }
+    cmd_whoami() { return { out: (this.asRoot ? "root" : DEFAULT_OWNER) + "\n" }; }
     cmd_echo(args) {
       let nl = true;
       if (args[0] === "-n") { nl = false; args = args.slice(1); }
@@ -526,7 +776,7 @@
             out += `${r[0]} ${r[1].padStart(w(1))} ${r[2].padEnd(w(2))} ${r[3].padEnd(w(3))} ${r[4].padStart(w(4))} ${r[5]} ${r[6]}\n`;
           });
         } else if (entries.length) {
-          out += entries.map(e => e.label).join(flags.has("1") ? "\n" : "  ") + "\n";
+          out += entries.map(e => e.label).join(flags.has("1") || this.pipedOut ? "\n" : "  ") + "\n";
         }
       });
       return { out, err };
@@ -553,7 +803,7 @@
         if (flags.has("p")) { this.mkdirp(a); return; }
         const parent = this.lookup(dirname(a), true);
         if (!parent || parent.type !== "dir") { err += `mkdir: cannot create directory '${p}': No such file or directory\n`; return; }
-        parent.children.set(basename(a), { name: basename(a), type: "dir", mode: 0o755, owner: DEFAULT_OWNER, group: DEFAULT_GROUP, children: new Map(), mtime: nowStamp() });
+        parent.children.set(basename(a), { name: basename(a), type: "dir", mode: 0o777 & ~(this.umaskVal === undefined ? 0o022 : this.umaskVal), owner: DEFAULT_OWNER, group: DEFAULT_GROUP, children: new Map(), mtime: nowStamp(), age: 0 });
       });
       return { err };
     }
@@ -576,7 +826,7 @@
       args.filter(a => !a.startsWith("-")).forEach(p => {
         const a = this.abs(p);
         const n = this.lookup(a, true);
-        if (n) n.mtime = nowStamp();
+        if (n) { n.mtime = nowStamp(); n.age = 0; }
         else if (!this.createFile(a, "")) err += `touch: cannot touch '${p}': No such file or directory\n`;
       });
       return { err };
@@ -674,12 +924,16 @@
     }
 
     applyMode(node, spec) {
-      if (/^[0-7]{3,4}$/.test(spec)) { node.mode = parseInt(spec.slice(-3), 8); return true; }
+      if (/^[0-7]{3,4}$/.test(spec)) { node.mode = parseInt(spec, 8) & 0o7777; return true; }
       let mode = node.mode;
       for (const clause of spec.split(",")) {
-        const m = /^([ugoa]*)([+\-=])([rwxX]*)$/.exec(clause);
+        const m = /^([ugoa]*)([+\-=])([rwxXst]*)$/.exec(clause);
         if (!m) return false;
         const who = m[1] || "a";
+        if (m[3].includes("s") || m[3].includes("t")) {
+          const sp = (who.includes("u") || who.includes("a") ? (m[3].includes("s") ? 0o4000 : 0) : 0) | (who.includes("g") || who.includes("a") ? (m[3].includes("s") ? 0o2000 : 0) : 0) | (m[3].includes("t") ? 0o1000 : 0);
+          if (m[2] === "+") mode |= sp; else if (m[2] === "-") mode &= ~sp; else mode |= sp;
+        }
         let bits = 0;
         if (m[3].includes("r")) bits |= 4;
         if (m[3].includes("w")) bits |= 2;
@@ -831,7 +1085,7 @@
         if (flags.has("c")) out += (multi ? src.name + ":" : "") + hits.length + "\n";
         else hits.forEach(h => { out += (multi ? src.name + ":" : "") + (flags.has("n") ? (h.i + 1) + ":" : "") + h.l + "\n"; });
       });
-      return { out, err };
+      return { out, err, code: err ? 2 : (out ? 0 : 1) };
     }
 
     cmd_sort(args, flags, stdin) {
@@ -976,7 +1230,20 @@
     }
 
     cmd_stat(args) {
-      const files = args.filter(a => !a.startsWith("-"));
+      let fmt = null; const rest = [];
+      for (let i = 0; i < args.length; i++) { if (args[i] === "-c") fmt = args[++i]; else if (args[i].startsWith("--format=")) fmt = args[i].slice(9); else rest.push(args[i]); }
+      if (fmt !== null) {
+        let outF = "", errF = "";
+        rest.filter(a => !a.startsWith("-")).forEach(f => {
+          const n = this.lookup(this.abs(f));
+          if (!n) { errF += "stat: cannot statx '" + f + "': No such file or directory\n"; return; }
+          const kind = n.type === "dir" ? "directory" : n.type === "link" ? "symbolic link" : (n.size ? "regular file" : "regular empty file");
+          let inode = 0; for (const ch of this.abs(f)) inode = (inode * 31 + ch.charCodeAt(0)) % 900000;
+          outF += fmt.replace(/%([aAUGsnFiugN%])/g, (m, k) => ({ a: ("0" + (n.mode & 0o7777).toString(8)).slice(-4).replace(/^0(?=\d{3}$)/, ""), A: permString(n), U: n.owner, G: n.group, s: String(n.type === "dir" ? 4096 : (n.size || 0)), n: f, F: kind, i: String(inode + 100000), u: n.owner === "root" ? "0" : "1000", g: n.group === "root" ? "0" : "1000", N: "'" + f + "'", "%": "%" })[k]) + "\n";
+        });
+        return { out: outF, err: errF };
+      }
+      const files = rest.filter(a => !a.startsWith("-"));
       if (!files.length) return { err: "stat: missing operand\n" };
       const idOf = n => (n === "root" ? 0 : n === "ubuntu" ? 1000 : 1001);
       let out = "", err = "";
@@ -1171,6 +1438,9 @@
     }
   }
 
+  VirtualShell.supports = {};
+  VirtualShell.KNOWN = KNOWN;
+  VirtualShell.internals = { tokenize, expandVars, globToRegex, normalize, dirname, basename, permString, parseSize, formatSize, modeFromPermString, nowStamp, clone, HOME, DEFAULT_OWNER, DEFAULT_GROUP };
   root.VirtualShell = VirtualShell;
   if (typeof module !== "undefined" && module.exports) module.exports = { VirtualShell };
 })(typeof window !== "undefined" ? window : globalThis);

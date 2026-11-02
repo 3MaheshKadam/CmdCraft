@@ -817,6 +817,9 @@ class CmdCraftApp {
     // Harmless exploration (ls, cat, a typo that changed nothing...) isn't an attempt: no penalty, no log entry.
     if (!isMatch && shellHandled && !stateChanged && !shellResult.err) {
       this.appendTerminalLine(`<span class="text-neutral-500 text-xs">Command ran fine, but the mission isn't complete yet. Keep exploring or use Hint.</span>`);
+      this.dom.evalStatusPill.textContent = "KEEP GOING";
+      this.dom.evalStatusPill.className = "text-[11px] font-mono px-2 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30";
+      this.renderErrorFeedback(cmd, shellResult, "explore");
       return;
     }
 
@@ -880,7 +883,7 @@ class CmdCraftApp {
       this.dom.evalStatusPill.className = "text-[11px] font-mono px-2 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/30";
       
       // Provide immediate smart feedback
-      this.renderErrorFeedback(cmd);
+      this.renderErrorFeedback(cmd, shellResult, "wrong");
     }
   }
 
@@ -913,7 +916,13 @@ class CmdCraftApp {
     `;
   }
 
-  renderErrorFeedback(attempted) {
+  renderErrorFeedback(attempted, result, mode) {
+    if (window.CmdFeedback) {
+      try {
+        window.CmdFeedback.render(this.dom.explanation, window.CmdFeedback.analyze(attempted, this.currentScenario, this.shell, result), mode || "wrong");
+        return;
+      } catch (e) { console.warn("Feedback explainer failed, using the simple message:", e); }
+    }
     this.dom.explanation.innerHTML = `
       <div class="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs space-y-2">
         <div class="flex items-center space-x-2 text-red-400 font-semibold">
