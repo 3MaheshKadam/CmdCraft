@@ -8,6 +8,7 @@ let pass = 0, fail = 0; const check = (n, c) => { (c ? pass++ : fail++); console
   const w = dom.window; w.initSqlJs = () => initSqlJs(); w.confirm = () => true;
   // every content script the page loads, in page order
   raw.match(/<script src="(content|app)\/[^"]+"><\/script>/g).map(s => /src="([^"]+)"/.exec(s)[1]).forEach(f => w.eval(fs.readFileSync(dir + "sql/" + f, "utf8")));
+  w.eval(fs.readFileSync(dir + "shared/ask-claude.js", "utf8"));
   const inline = html.match(/<script>([\s\S]*?)<\/script>/g).map(s => s.replace(/<\/?script>/g, "")).join("\n");
   w.eval(inline);
   const $ = id => w.document.getElementById(id); const sleep = ms => new Promise(r => setTimeout(r, ms));

@@ -151,6 +151,14 @@
     open(m && byDay[+m[1]] ? +m[1] : (first ? first.day : 0));
   })();
   </script>
+  <script src="../shared/ask-claude.js"></script>
+  <script>
+  AskClaude.mount({ subject: "SQL", getContext: () => {
+    const day = (location.hash.match(/day=(\d+)/) || [])[1], S = window.SQL_SYLLABUS, d = S.find(x => x.day === +day) || S[0], l = window.SQL_LESSONS.find(x => x.day === d.day);
+    const prereq = S.filter(x => x.day < d.day).slice(-2).map(x => ({ title: "Day " + x.day + " " + x.title, topics: x.bullets }));
+    return { kind: "lesson", title: "Day " + d.day + ": " + d.title, topics: d.bullets, prereq, body: "Lesson summary: " + l.intro, extra: l.example ? "Example from the lesson:\n" + l.example.sql : "" };
+  } });
+  </script>
   <script src="../shared/pwa.js"></script>
 </body>
 </html>

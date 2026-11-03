@@ -71,6 +71,7 @@
     </main>
   </div>
 
+  <script src="content/syllabus.js"></script>
   <script src="content/problems.js"></script>
   <script src="content/datasets-extra.js"></script>
   <script src="content/problems-2.js"></script>
@@ -209,6 +210,25 @@
     initSqlJs({ locateFile: f => base + f }).then(SQL => {
       window.SQLJudge.setEngine(SQL); ready = true; $("loading").classList.add("hidden"); $("problem").classList.remove("hidden"); open(cur);
     }).catch(e => { $("loading").textContent = "Could not start the SQLite engine: " + (e && e.message ? e.message : e); });
+  })();
+  </script>
+  <script src="../shared/ask-claude.js"></script>
+  <script>
+  (function () {
+    const MOD_DAY = { select: 6, filter: 6, agg: 8, aggx: 8, join: 11, joinx: 11, sub: 13, subx: 13, window: 16, winx: 16, case: 15, casex: 15, dml: 5, dml2: 5, ddl: 3, cons: 4, ops: 7, setop: 14, cte: 17, datex: 18, strx: 19, rep: 20, view: 21, trig: 23, tx: 24, idx: 26, design: 28, int1: 31, int2: 32, sql50: 33, pj1: 35, pj2: 36, pj3: 37, theory: 0 };
+    AskClaude.mount({ subject: "SQL", getContext: () => {
+      const id = document.getElementById("p-id").textContent, p = window.SQL_PROBLEMS.find(x => x.id === id), S = window.SQL_SYLLABUS, day = MOD_DAY[p.mod] || 0, d = S.find(x => x.day === day);
+      const prereq = [S.find(x => x.day === day - 1), d].filter(Boolean).map(x => ({ title: "Day " + x.day + " " + x.title, topics: x.bullets }));
+      let body = "Task: " + p.task;
+      if (p.kind === "mcq") body += "\nOptions: " + p.options.map((o, i) => String.fromCharCode(65 + i) + ") " + o).join("  ");
+      else if (p.ds && window.SQLJudge) { try { body += "\nTables: " + window.SQLJudge.schema(p.ds).map(t => t.table + "(" + t.cols.map(c => c.name).join(", ") + ")").join("; "); } catch (e) { /* engine not ready */ } }
+      const mine = (document.getElementById("editor") || {}).value, fb = document.getElementById("feedback");
+      let extra = "";
+      if (mine && mine.trim()) extra += "My current attempt:\n" + mine.trim();
+      if (fb && !fb.classList.contains("hidden") && fb.textContent) extra += "\nResult of checking it: " + fb.textContent.trim();
+      extra += (extra ? "\n" : "") + "Please guide me with hints and questions first; do not reveal the full solution until I ask.";
+      return { kind: "problem", title: p.id + " " + p.title, topics: d ? d.bullets.slice(0, 10) : [], prereq, body, extra };
+    } });
   })();
   </script>
   <script src="../shared/pwa.js"></script>

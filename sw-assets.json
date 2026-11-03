@@ -66,6 +66,7 @@
     "linux/theory/index.html",
     "manifest.webmanifest",
     "progress.html",
+    "shared/ask-claude.js",
     "shared/cloud-config.js",
     "shared/cloud.js",
     "shared/pwa.js",

@@ -10,7 +10,7 @@ function page(file, extra) {
   const w = dom.window; w.initSqlJs = () => initSqlJs(); w.scrollTo = () => {};
   const base = file.replace(/[^/]+$/, "");
   const srcs = (raw.match(/<script src="(?!https?:|\.\.)[^"]+"><\/script>/g) || []).map(s => /src="([^"]+)"/.exec(s)[1]);
-  const shared = (raw.match(/<script src="\.\.\/shared\/qa-viewer\.js"><\/script>/) ? ["shared/qa-viewer.js"] : []);
+  const shared = ["qa-viewer", "ask-claude"].filter(n => raw.includes("../shared/" + n + ".js")).map(n => "shared/" + n + ".js");
   const code = [...srcs.map(f => base + f), ...shared].map(f => fs.readFileSync(dir + f, "utf8"));
   const inline = html.match(/<script>([\s\S]*?)<\/script>/g).map(s => s.replace(/<\/?script>/g, "")).join("\n");
   // qa-viewer defines a global const, so run all scripts as one program (as separate evals would not share top-level bindings)
@@ -18,6 +18,18 @@ function page(file, extra) {
   return w;
 }
 (async () => {
+  // Ask Claude panel on a lesson
+  let wa = page("sql/learn.html", "#day=16"); const A = id => wa.document.getElementById(id); const opened = [], copied = [];
+  Object.defineProperty(wa, "open", { value: u => { opened.push(u); }, configurable: true, writable: true }); wa.navigator.clipboard = { writeText: t => { copied.push(t); return Promise.resolve(); } };
+  A("ask-claude-btn").click(); const prompt = A("ask-claude-prompt").value;
+  check("the Ask Claude prompt recaps earlier concepts", /Recap the earlier concepts/.test(prompt) && /Day 14 Set Operators/.test(prompt) && /Day 15 CASE Statements/.test(prompt));
+  check("the prompt asks for practice questions and a hands-on exercise", /3 practice questions/.test(prompt) && /hands-on exercise/.test(prompt) && /Day 16: Window Functions/.test(prompt) && /ROW_NUMBER/.test(prompt));
+  A("ask-new").click(); await sleep(30); check("a new chat opens with the prompt filled in or copied", opened.length === 1 && /^https:\/\/claude\.ai\/new/.test(opened[0]));
+  A("ask-mine").click(); check("without a saved link the user is told to save one", /Save your chat link/.test(A("ask-msg").textContent) && opened.length === 1);
+  A("ask-url").value = "https://evil.example/chat/abc"; A("ask-save").click(); check("a non-claude link is rejected", /does not look like/.test(A("ask-msg").textContent));
+  A("ask-url").value = "https://claude.ai/chat/1234-abcd"; A("ask-save").click(); A("ask-mine").click(); await sleep(20);
+  check("my saved chat is opened and the prompt copied", opened[opened.length - 1] === "https://claude.ai/chat/1234-abcd" && copied.length >= 1 && copied[copied.length - 1] === A("ask-claude-prompt").value && wa.localStorage.getItem("cmdcraft.askclaude.chat") === "https://claude.ai/chat/1234-abcd");
+
   // roadmap home
   let w = page("sql/index.html"); let $ = id => w.document.getElementById(id);
   check("home lists a card for each of the 38 days", $("levels").querySelectorAll("a[href^='learn.html#day=']").length === 38 && $("levels").querySelectorAll("section").length === 7);
