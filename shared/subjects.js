@@ -10,7 +10,7 @@
  */
 window.SUBJECTS = [
   { id: "linux", name: "Linux", icon: "fa-brands fa-linux", prefixes: ["LNX-", "INCIDENT-"], planned: false },
-  { id: "sql",   name: "SQL",   icon: "fa-solid fa-database", prefixes: ["SQL-"],  planned: true },
+  { id: "sql",   name: "SQL",   icon: "fa-solid fa-database", prefixes: ["SQL-"],  planned: false },
   { id: "dsa",   name: "DSA",   icon: "fa-solid fa-diagram-project", prefixes: ["DSA-"],  planned: true },
   { id: "ai",    name: "AI / ML", icon: "fa-solid fa-brain", prefixes: ["AI-", "ML-"], planned: true }
 ];

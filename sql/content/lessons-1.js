@@ -1,0 +1,206 @@
+/**
+ * Lessons, days 0-7. `notes[i]` explains syllabus bullet i of the same day (a test checks they line up and none is empty).
+ * Lesson: { day, intro, notes[], example:{ds, sql, caption}, internals, mistakes[], interview:[[q, a]], revise[], mods[] }
+ */
+window.SQL_LESSONS = window.SQL_LESSONS || [];
+window.SQL_LESSONS.push(
+  {
+    day: 0, mods: ["theory"],
+    intro: "Before writing SQL you need the vocabulary: what a database is, why applications use one instead of files, and how a client talks to a server.",
+    notes: [
+      "Data is recorded facts (a price, a name, a click); information is data in context that helps a decision.",
+      "A database is an organised collection of data stored so it can be searched, updated and kept consistent.",
+      "Applications need shared, durable, fast and safe storage that many users can read and write at the same time.",
+      "Plain files have no query language, no concurrency control, no constraints and no crash recovery; a database provides all four.",
+      "A DBMS is the software (MySQL, PostgreSQL, Oracle, SQL Server, SQLite) that stores data and enforces access, integrity and transactions.",
+      "An RDBMS is a DBMS built on the relational model: data lives in tables related through keys.",
+      "SQL (Structured Query Language) is the standard declarative language: you state what result you want, the engine decides how to compute it.",
+      "SQL databases favour structure, joins and ACID guarantees; NoSQL stores (documents, key-value, wide-column, graph) favour flexible schemas and horizontal scale.",
+      "Common types: relational, document, key-value, column-family, graph, time-series and in-memory databases; most products are chosen by the shape of the data and the access pattern.",
+      "Typical architecture layers: client or application, connection layer, SQL parser and optimizer, execution engine, storage engine, files on disk.",
+      "In client-server architecture the client sends SQL over the network and the server executes it close to the data and returns the result.",
+      "The schema is the structure (tables, columns, types, constraints); the instance is the data stored at one moment.",
+      "A table is a set of rows; a row (record, tuple) is one entity; a column (field, attribute) is one property with a data type.",
+      "The database engine is the component that parses, optimizes and executes queries; the storage engine (InnoDB, for example) manages pages, indexes and locks.",
+      "A DBA installs, secures, tunes, backs up and recovers databases, and manages users and permissions."
+    ],
+    example: { ds: "company", caption: "A table, its columns and a few rows.", sql: "SELECT * FROM employees LIMIT 5;" },
+    internals: "A query travels: client driver, network, parser (syntax), validator (do the tables and columns exist, may this user read them), optimizer (choose a plan), executor (run the plan against the storage engine), result back to the client.",
+    mistakes: ["Treating SQL as a procedural language: you describe the result, not the loop.", "Choosing NoSQL because it sounds modern instead of from the access pattern.", "Confusing the database (the data) with the DBMS (the software)."],
+    interview: [["What is the difference between DBMS and RDBMS?", "A DBMS manages data in any model; an RDBMS specifically uses the relational model with tables, keys and SQL."], ["Schema versus instance?", "Schema is the design, which rarely changes; instance is the current data, which changes constantly."]],
+    revise: ["Database = data + structure; DBMS = the software; RDBMS = tables + keys.", "SQL is declarative.", "Client sends SQL, server parses, optimizes, executes."]
+  },
+  {
+    day: 1, mods: ["theory"],
+    intro: "The relational model gives the vocabulary behind every join and constraint: relations, keys and relationships.",
+    notes: [
+      "Codd's relational model represents all data as relations (tables) manipulated with set-based operations.",
+      "A relation is a table, a tuple is a row, an attribute is a column; the set of allowed values of an attribute is its domain.",
+      "Degree is the number of attributes (columns); cardinality is the number of tuples (rows).",
+      "The primary key uniquely identifies each row; it cannot be NULL and there is exactly one per table.",
+      "A foreign key is a column whose values must match a key in another table (or be NULL): it creates the relationship and enforces referential integrity.",
+      "A candidate key is any minimal set of columns that could uniquely identify a row; one is chosen as primary.",
+      "A super key is any set of columns that is unique, possibly with extra columns beyond what is needed.",
+      "An alternate key is a candidate key that was not chosen as the primary key (often declared UNIQUE).",
+      "A composite key uses two or more columns together, common in junction tables.",
+      "A surrogate key is an artificial identifier (auto-increment id, UUID) with no business meaning; it never has to change.",
+      "A natural key is a real-world value that is unique (email, passport number); it can change and may leak information.",
+      "An entity is a thing you store data about (customer); a relationship is how entities relate (customer places order).",
+      "One-to-one: each row matches at most one row on the other side; often a profile or details table sharing the primary key.",
+      "One-to-many: one parent row has many children; implemented with a foreign key on the child side (orders.customer_id).",
+      "Many-to-many: implemented with a junction table holding a foreign key to each side (enrolments between students and courses).",
+      "An ER (entity-relationship) diagram draws entities as boxes and relationships as lines with cardinality (1, N); it is the blueprint before CREATE TABLE."
+    ],
+    example: { ds: "lab", caption: "enrolments is a junction table: composite primary key (student_id, course_id) with two foreign keys.", sql: "SELECT s.name, c.title FROM enrolments e JOIN students s ON s.id = e.student_id JOIN courses c ON c.id = e.course_id;" },
+    internals: "InnoDB stores the table as a B+ tree ordered by the primary key (the clustered index). A short, stable surrogate key keeps every secondary index small, because each index entry carries the primary key.",
+    mistakes: ["Using a changing natural key (email) as the primary key.", "Storing many-to-many data as a comma-separated list.", "Forgetting that a foreign key column may be NULL (optional relationship)."],
+    interview: [["Primary key vs unique key?", "A table has one primary key, never NULL; it may have many unique keys, which can allow NULL."], ["Why a junction table?", "A relational column holds one value, so a many-to-many link needs its own table of pairs."], ["Surrogate or natural key?", "Prefer a surrogate primary key and keep the natural key as UNIQUE: stable joins, flexible business rules."]],
+    revise: ["Row = tuple, column = attribute, table = relation.", "PK unique + not null; FK references a key.", "Many-to-many needs a junction table."]
+  },
+  {
+    day: 2, mods: ["theory"],
+    intro: "Choosing the right data type protects correctness (money!), saves space and lets indexes work.",
+    notes: [
+      "INT is a 4-byte whole number (about -2.1 to 2.1 billion).",
+      "BIGINT is an 8-byte whole number for counts and ids that may exceed 2 billion.",
+      "SMALLINT is a 2-byte whole number (-32768 to 32767).",
+      "TINYINT is a 1-byte whole number (-128 to 127), often used for flags and small codes.",
+      "FLOAT is a 4-byte approximate binary number: fast but inexact, so never for money.",
+      "DOUBLE is an 8-byte approximate number with more precision than FLOAT, still inexact.",
+      "DECIMAL(p,s) is an exact fixed-point number: DECIMAL(10,2) holds 8 integer digits and 2 decimals; use it for money.",
+      "CHAR(n) is fixed length and padded; use it for codes of constant width (country code).",
+      "VARCHAR(n) stores up to n characters using only the space needed; the default choice for short text.",
+      "TEXT holds long text (articles, comments) and is stored off-row in some engines; it cannot take a normal default or full index.",
+      "DATE stores a calendar date without time (YYYY-MM-DD).",
+      "TIME stores a time of day or a duration.",
+      "DATETIME stores date and time as written, with no time zone conversion.",
+      "TIMESTAMP stores a moment in UTC and converts it to the session time zone; it is good for created/updated stamps.",
+      "BOOLEAN is a true/false flag; in MySQL it is an alias of TINYINT(1).",
+      "NULL means unknown or missing; it is not zero and not an empty string, and any comparison with it is unknown.",
+      "AUTO_INCREMENT makes the database generate the next integer for a key column on insert.",
+      "A DEFAULT value is used when an INSERT omits the column; combine with NOT NULL so a column is never empty."
+    ],
+    example: { ds: "company", caption: "Types and arithmetic: salary is INTEGER, so integer division truncates unless one side is decimal.", sql: "SELECT typeof(salary) AS t, salary / 12 AS int_div, salary / 12.0 AS exact FROM employees LIMIT 3;" },
+    internals: "Fixed-width types (INT, DECIMAL, CHAR) give predictable row sizes and fast scans; variable types add a length prefix. Smaller types mean more rows per 16 KB page, so more rows fit in memory and indexes are shallower.",
+    mistakes: ["Storing money in FLOAT (0.1 + 0.2 is not 0.3).", "Using VARCHAR(255) everywhere without thought.", "Storing dates as text in a free-form format.", "Treating NULL as 0 in calculations."],
+    interview: [["DECIMAL vs FLOAT?", "DECIMAL is exact and for money; FLOAT is approximate and for measurements."], ["CHAR vs VARCHAR?", "CHAR is fixed width and padded; VARCHAR is variable width. Use CHAR only for constant-length codes."], ["What does NULL mean?", "Unknown or missing. Test with IS NULL; aggregates skip it."]],
+    revise: ["Money = DECIMAL.", "TIMESTAMP is UTC-aware, DATETIME is literal.", "NULL is unknown, not 0 or ''."]
+  },
+  {
+    day: 3, mods: ["ddl"],
+    intro: "DDL defines and changes the structure: databases, tables and columns.",
+    notes: [
+      "DDL (Data Definition Language) statements define structure: CREATE, ALTER, DROP, TRUNCATE, RENAME. In MySQL each one commits implicitly.",
+      "CREATE DATABASE name creates a new namespace; USE name selects it. (SQLite has one database per file.)",
+      "CREATE TABLE lists columns with types and constraints; add IF NOT EXISTS to make scripts re-runnable.",
+      "ALTER TABLE changes an existing table: add, drop or rename columns, change types, add constraints or indexes.",
+      "DROP TABLE removes the table, its data and its indexes permanently; IF EXISTS avoids an error when it is missing.",
+      "TRUNCATE TABLE empties a table quickly and resets AUTO_INCREMENT; it cannot filter rows.",
+      "RENAME TABLE old TO new (or ALTER TABLE ... RENAME TO) renames a table; code that uses the old name breaks.",
+      "ALTER TABLE t ADD COLUMN c TYPE [DEFAULT ...] adds a column; existing rows receive NULL or the default.",
+      "ALTER TABLE t DROP COLUMN c removes a column and its data; take a backup first.",
+      "MySQL changes a type with ALTER TABLE t MODIFY COLUMN c NEWTYPE (or CHANGE to also rename); PostgreSQL uses ALTER COLUMN ... TYPE. Existing data must convert cleanly, and big tables may be rebuilt.",
+      "Declare constraints in CREATE TABLE (PRIMARY KEY, NOT NULL, UNIQUE, CHECK, FOREIGN KEY) so bad data is rejected from day one."
+    ],
+    example: { ds: "lab", caption: "Create a table, extend it, look at its structure.", sql: "CREATE TABLE rooms (id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(50) NOT NULL, capacity INT DEFAULT 30); ALTER TABLE rooms ADD COLUMN floor INT; DESCRIBE rooms;" },
+    internals: "MySQL adds a nullable column with the INSTANT algorithm (metadata only). Changing a type, or adding a column in the middle on older versions, rebuilds the table: a long lock on large tables. Plan migrations and test on a copy.",
+    mistakes: ["Running DROP in the wrong database.", "Assuming DDL can be rolled back in MySQL.", "Adding a NOT NULL column without a DEFAULT to a table that already has rows."],
+    interview: [["DELETE vs TRUNCATE vs DROP?", "DELETE removes rows with WHERE and is logged per row; TRUNCATE removes all rows and resets AUTO_INCREMENT; DROP removes the table."], ["Is DDL transactional?", "In MySQL no (implicit commit); in PostgreSQL yes."]],
+    revise: ["CREATE / ALTER / DROP / TRUNCATE / RENAME.", "DDL auto-commits in MySQL.", "Use IF [NOT] EXISTS in scripts."]
+  },
+  {
+    day: 4, mods: ["cons"],
+    intro: "Constraints let the database defend its own data, whatever the application does.",
+    notes: [
+      "PRIMARY KEY = NOT NULL + UNIQUE; it identifies each row and creates the clustered index in InnoDB.",
+      "FOREIGN KEY (col) REFERENCES parent(key) guarantees the value exists in the parent table (or is NULL).",
+      "UNIQUE rejects duplicate values; most engines allow several NULLs in a UNIQUE column.",
+      "NOT NULL forbids missing values in the column.",
+      "CHECK (condition) rejects rows that make the condition false (MySQL enforces it from 8.0.16).",
+      "DEFAULT supplies a value when the INSERT omits the column.",
+      "A composite primary key PRIMARY KEY (a, b) makes the pair unique; typical for junction tables.",
+      "Constraints can be added later: ALTER TABLE t ADD CONSTRAINT name ... (existing rows are validated first).",
+      "Constraints are removed with ALTER TABLE t DROP CONSTRAINT name (MySQL: DROP FOREIGN KEY / DROP INDEX / DROP CHECK).",
+      "Referential integrity means no orphan rows: every child points to a parent that exists.",
+      "ON DELETE CASCADE deletes the child rows automatically when the parent is deleted.",
+      "ON UPDATE CASCADE rewrites child keys when the parent key changes.",
+      "RESTRICT (or NO ACTION) refuses to delete or update a parent that still has children.",
+      "SET NULL keeps the child rows and sets their foreign key to NULL (column must be nullable)."
+    ],
+    example: { ds: "lab", caption: "A table with every common constraint, then a bad insert that is skipped.", sql: "CREATE TABLE members (id INTEGER PRIMARY KEY, email TEXT NOT NULL UNIQUE, age INTEGER CHECK (age >= 18), tier TEXT DEFAULT 'basic'); INSERT OR IGNORE INTO members (id, email, age) VALUES (1,'a@x.com',20),(2,'a@x.com',30),(3,'b@x.com',10); SELECT * FROM members;" },
+    internals: "UNIQUE and PRIMARY KEY are enforced by a unique index; every INSERT does a lookup in it. Foreign keys check the parent index on each child insert and the child index on each parent delete, so index your foreign key columns.",
+    mistakes: ["Relying on application code instead of constraints.", "CASCADE on a table where deleting a parent should be rare.", "Forgetting to index the foreign key column."],
+    interview: [["What does ON DELETE CASCADE do?", "Deletes dependent child rows when the parent is deleted."], ["PRIMARY KEY vs UNIQUE?", "One primary key per table, never NULL; many unique constraints, NULLs allowed."], ["Why CHECK constraints?", "To keep invalid values (negative balance) out regardless of which program writes."]],
+    revise: ["PK = unique + not null.", "FK actions: CASCADE, SET NULL, RESTRICT.", "Constraints are the last line of defence."]
+  },
+  {
+    day: 5, mods: ["dml", "dml2"],
+    intro: "DML changes the rows: INSERT, UPDATE and DELETE. Most production incidents here are a missing WHERE.",
+    notes: [
+      "INSERT INTO t (cols) VALUES (...) adds one row; always list the columns.",
+      "INSERT INTO t (cols) VALUES (...), (...), (...) adds several rows in one statement, much faster than separate inserts.",
+      "INSERT INTO t SELECT ... copies the result of a query into a table (optionally with a column list).",
+      "UPDATE t SET col = expr WHERE ... changes existing rows; expressions may use the row's own columns.",
+      "DELETE FROM t WHERE ... removes rows; it fires triggers and honours foreign keys.",
+      "UPDATE with conditions: put the keys or filters in WHERE (and run it as a SELECT first to see what it matches).",
+      "DELETE with conditions: same rule, and prefer deleting by primary key; wrap risky deletes in a transaction.",
+      "DELETE removes selected rows and can be rolled back; TRUNCATE removes all rows quickly and resets counters; DROP removes the table itself.",
+      "Safe updates: MySQL's safe-updates mode rejects UPDATE/DELETE without a key in WHERE; test on a SELECT, use a transaction, keep backups.",
+      "Duplicates: prevent them with UNIQUE; handle them with INSERT IGNORE, REPLACE INTO or INSERT ... ON DUPLICATE KEY UPDATE (upsert); clean old ones with DELETE ... WHERE id NOT IN (SELECT MIN(id) ... GROUP BY key)."
+    ],
+    example: { ds: "lab", caption: "Insert several rows, update one, delete one, then look.", sql: "INSERT INTO students (id, name, email, age, city) VALUES (6,'Farah','f@uni.edu',20,'Pune'),(7,'Gopal','g@uni.edu',24,'Delhi'); UPDATE students SET city = 'Goa' WHERE id = 7; DELETE FROM students WHERE id = 6; SELECT id, name, city FROM students ORDER BY id;" },
+    internals: "An UPDATE or DELETE finds rows through an index when WHERE allows it; otherwise it scans and may lock many rows. InnoDB writes the old row version to the undo log (for rollback and consistent reads) and the change to the redo log (for durability) before COMMIT returns.",
+    mistakes: ["UPDATE or DELETE without WHERE.", "INSERT without a column list.", "Deleting a parent while children exist (foreign key error)."],
+    interview: [["How do you avoid an accidental full-table UPDATE?", "Write the WHERE first, SELECT it, use a transaction, and enable safe-updates."], ["Upsert in MySQL?", "INSERT ... ON DUPLICATE KEY UPDATE (PostgreSQL: ON CONFLICT DO UPDATE)."], ["Remove duplicate rows?", "Keep one per key: DELETE where id is not the MIN(id) per group, then add UNIQUE."]],
+    revise: ["INSERT / UPDATE / DELETE need columns / WHERE.", "DELETE (rows) vs TRUNCATE (all rows) vs DROP (table).", "Upsert = insert or update atomically."]
+  },
+  {
+    day: 6, mods: ["select", "filter"],
+    intro: "SELECT is the query statement: choose columns, filter rows, sort and limit.",
+    notes: [
+      "SELECT columns FROM table reads data without changing it; it is the Data Query Language part of SQL.",
+      "SELECT * returns every column: fine for exploring, risky in code because the result changes with the schema.",
+      "Naming columns returns only what you need, reduces I/O and enables covering indexes.",
+      "AS gives a column or expression an alias in the output (it cannot be used in WHERE).",
+      "DISTINCT removes duplicate result rows (whole rows, not single columns).",
+      "WHERE keeps only rows for which the condition is true (unknown/NULL counts as not true).",
+      "ORDER BY sorts the result; without it the row order is undefined.",
+      "ASC (default) sorts ascending and DESC descending; you can mix them per column.",
+      "LIMIT n returns at most n rows (SQL Server: TOP, Oracle: FETCH FIRST n ROWS ONLY).",
+      "OFFSET m skips m rows; deep OFFSETs are slow because skipped rows are still read, so large tables use keyset pagination.",
+      "Filtering records combines comparisons, AND/OR/NOT, IN, BETWEEN, LIKE and IS NULL."
+    ],
+    example: { ds: "company", caption: "Columns, alias, filter, sort and limit together.", sql: "SELECT name, salary * 1.1 AS raised FROM employees WHERE dept_id = 1 ORDER BY salary DESC LIMIT 3;" },
+    internals: "Logical order: FROM, WHERE, GROUP BY, HAVING, SELECT, DISTINCT, ORDER BY, LIMIT. That is why an alias defined in SELECT can be used in ORDER BY but not in WHERE.",
+    mistakes: ["Relying on row order without ORDER BY.", "SELECT * in production code.", "Using = NULL instead of IS NULL."],
+    interview: [["Order of execution of a SELECT?", "FROM, WHERE, GROUP BY, HAVING, SELECT, DISTINCT, ORDER BY, LIMIT."], ["Why is OFFSET pagination slow?", "The engine reads and discards all skipped rows; use WHERE id > last_seen instead."]],
+    revise: ["SELECT cols FROM t WHERE ... ORDER BY ... LIMIT.", "Aliases not visible in WHERE.", "No ORDER BY, no guaranteed order."]
+  },
+  {
+    day: 7, mods: ["ops"],
+    intro: "Operators build conditions: arithmetic, comparison and logic, plus the special predicates IN, BETWEEN, LIKE, IS NULL, EXISTS, ANY and ALL.",
+    notes: [
+      "Arithmetic: + - * / and % (modulo); integer division differs between engines, so use a decimal operand when you need fractions.",
+      "Comparison: = <> (or !=) < <= > >=; any comparison with NULL yields unknown.",
+      "Logical operators combine conditions using three-valued logic (true, false, unknown).",
+      "AND is true only if both sides are true.",
+      "OR is true if either side is true; AND binds tighter than OR, so use parentheses.",
+      "NOT negates a condition; NOT unknown is still unknown.",
+      "IN (list or subquery) is shorthand for several OR equality tests.",
+      "NOT IN excludes the listed values, but returns nothing if the list contains a NULL.",
+      "BETWEEN a AND b is inclusive of both ends.",
+      "LIKE matches text patterns (case sensitivity depends on collation).",
+      "Wildcards: % matches any number of characters, _ matches exactly one.",
+      "IS NULL tests for a missing value; = NULL never works.",
+      "IS NOT NULL keeps rows that have a value.",
+      "EXISTS (subquery) is true if the subquery returns at least one row; it ignores the selected columns.",
+      "x op ANY (subquery) is true if the comparison holds for at least one returned value (x > ANY means greater than the minimum).",
+      "x op ALL (subquery) is true if the comparison holds for every returned value (x > ALL means greater than the maximum)."
+    ],
+    example: { ds: "company", caption: "Combine operators: parentheses, IN, BETWEEN, LIKE, IS NULL.", sql: "SELECT name, salary FROM employees WHERE (dept_id IN (1, 2) AND salary BETWEEN 80000 AND 140000) OR manager_id IS NULL;" },
+    internals: "SQL uses three-valued logic. WHERE keeps only rows whose condition is TRUE. A predicate that wraps an indexed column in a function (UPPER(name) = 'X') cannot use that index, so compare the bare column.",
+    mistakes: ["NOT IN with a subquery that can return NULL.", "Mixing AND and OR without parentheses.", "LIKE '%text' on a big table and expecting an index to help."],
+    interview: [["IN vs EXISTS?", "IN compares to a list; EXISTS stops at the first match and is NULL-safe. Modern optimizers often plan them the same."], ["What does x > ALL (subquery) mean?", "x is greater than every value the subquery returns."]],
+    revise: ["NULL needs IS NULL.", "AND before OR: add parentheses.", "NOT IN + NULL = no rows."]
+  }
+);

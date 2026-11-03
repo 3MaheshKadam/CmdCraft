@@ -105,3 +105,32 @@ linux/
 4. Add its content scripts to `activity.html` so the dashboard can show titles.
 
 `linux/app/app.js` is still Linux-coupled; when a second subject needs the same game loop, move the generic parts into `shared/` first.
+
+## AI track (interview Q&A)
+`ai/index.html` is a question-and-answer track, not a practice engine. Content lives in `ai/content/qa-*.js`:
+each question has a model answer (written to be adapted to your own project), what the interviewer is probing, and the likely cross-questions with answers.
+Add a question by appending to a topic's `qa` array; add a module by pushing a new object to `window.AI_INTERVIEW` and adding its script tag in `ai/index.html`.
+Python, SQL and React are roadmap cards on the root `index.html` (edit the `SUBJECTS` list).
+
+## Features by subject
+- **Linux** (`linux/`): practice drills (`index.html`, with a spaced-repetition **Review** mode and `?topic=` deep links), **theory** reference of ~240 commands with an impact badge (read-only / changes files / changes system / can destroy data), **troubleshooting playbooks**, a command quiz built from the cards, and experienced-level **interview Q&A** (`interview.html`).
+- **SQL** (`sql/`): a 38-day beginner-to-expert **roadmap** (`index.html`) with a lesson for every one of its 452 topics (`learn.html`), 440+ hands-on problems and quiz questions (`practice.html`), a 50-problem interview set, three projects, interview Q&A (`interview.html`), a concurrency and index **lab** (`lab.html`) and a coverage page (`coverage.html`). Queries run on SQLite (sql.js) with a MySQL compatibility layer; see the section below.
+- **AI** (`ai/`): interview Q&A with traps and cross-questions, plus live-coding problems.
+- **Progress** (`progress.html`): everything done on this device across subjects, with export/import to back it up.
+- The shared interview viewer is `shared/qa-viewer.js` (configure it per subject).
+
+## Offline use
+The site is a PWA: `sw.js` caches pages network-first (deploys show up immediately, the cache is the fallback) and pre-caches every file in `sw-assets.json`.
+Run `npm run build:assets` after adding or removing site files and commit the result (CI checks it is current).
+
+## Tests
+`npm install` then `npm test` runs every suite in `tests/` (scenario solutions, the shell and editors, all pages in jsdom, SQL reference solutions under real SQLite).
+`npm run test:offline` is an optional real-Chrome check of the service worker. GitHub Actions runs `npm test` on every push (`.github/workflows/test.yml`).
+`tests/`, `tools/`, `package.json` and `node_modules` are excluded from the Vercel deploy (see `.vercelignore`).
+
+## SQL roadmap internals
+- `sql/content/syllabus.js` is the roadmap as data (days, levels, bullets). `lessons-1..5.js` hold one lesson per day; `notes[i]` explains bullet `i`, and `tests/sql-roadmap.test.js` fails if any bullet has no note or a lesson example does not run.
+- Problems: `problems.js` (original 51) plus `problems-2..9.js`. Kinds: query (result sets compared), `dml` (statements run, then a `check` query compared; the check may be several statements, e.g. `INSERT OR IGNORE` probes to prove a constraint works) and `mcq` (theory quiz). Datasets are in `problems.js` and `datasets-extra.js`. `tests/sql-content.test.js` runs every reference solution and rejects wrong or no-op answers.
+- `sql/app/compat.js` rewrites common MySQL 8 syntax for SQLite (CREATE DATABASE/USE, AUTO_INCREMENT, DESCRIBE, SHOW TABLES, TRUNCATE, RENAME TABLE, INSERT IGNORE, ON DUPLICATE KEY UPDATE, MINUS, DELIMITER blocks, CREATE OR REPLACE VIEW, ALTER ... ADD CONSTRAINT UNIQUE, ANY/ALL, INTERVAL arithmetic) and registers MySQL functions (CONCAT, IF, DATEDIFF, DATE_ADD, TIMESTAMPDIFF, DATE_FORMAT, LOCATE, LPAD, REGEXP...).
+- Honest limits: the engine is SQLite, not MySQL. Stored procedures, user-defined functions, real multi-session isolation, materialized views and join-algorithm internals are taught as concepts (lessons, quiz, and the simulator in `lab.html`), not executed.
+- The 50-problem set is original and in the style of well-known SQL 50 lists; the official LeetCode plan has to be done on leetcode.com.

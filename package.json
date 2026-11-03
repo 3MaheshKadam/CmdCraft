@@ -1,0 +1,18 @@
+{
+  "name": "cmdcraft",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Hands-on Linux and SQL practice with theory and interview preparation.",
+  "scripts": {
+    "test": "node tests/run-all.js",
+    "test:offline": "node tests/offline.js",
+    "build:assets": "node tools/build-assets.js"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1",
+    "sql.js": "1.8.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

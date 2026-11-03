@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CmdCraft // SQL Syllabus Coverage</title>
+  <meta name="theme-color" content="#0a0a0a">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="../shared/theme.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-surface-0 text-neutral-200 font-sans min-h-screen">
+  <header class="border-b border-neutral-800 bg-surface-1 px-4 py-3 sticky top-0 z-20">
+    <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <a href="../" class="font-extrabold text-xl text-emerald-400">CmdCraft</a>
+        <a href="./" class="text-neutral-500 text-sm hover:text-neutral-300"><i class="fa-solid fa-database mr-1"></i>SQL</a><span class="text-neutral-600">/</span><span class="text-neutral-300 text-sm">Coverage</span>
+      </div>
+      <a href="./" class="text-xs text-neutral-400 hover:text-neutral-200"><i class="fa-solid fa-map mr-1"></i>Roadmap</a>
+    </div>
+  </header>
+  <main class="max-w-6xl mx-auto px-4 py-6 space-y-5">
+    <h1 class="text-xl font-bold text-neutral-100">Syllabus coverage</h1>
+    <p id="intro" class="text-sm text-neutral-400 max-w-3xl"></p>
+    <div id="days" class="space-y-3"></div>
+  </main>
+  <script src="content/syllabus.js"></script>
+  <script src="content/lessons-1.js"></script>
+  <script src="content/lessons-2.js"></script>
+  <script src="content/lessons-3.js"></script>
+  <script src="content/lessons-4.js"></script>
+  <script src="content/lessons-5.js"></script>
+  <script>
+  (function () {
+    const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+    const S = window.SQL_SYLLABUS, by = {}; window.SQL_LESSONS.forEach(l => { by[l.day] = l; });
+    let total = 0, covered = 0;
+    S.forEach(d => d.bullets.forEach((b, i) => { total++; if (by[d.day] && by[d.day].notes[i]) covered++; }));
+    document.getElementById("intro").textContent = covered + " of " + total + " roadmap topics have a written lesson note. Each day links to its lesson; hover a topic to read its note. Items such as stored procedures, functions, isolation levels, materialized views and join internals are explained and quizzed but cannot run on the browser's SQLite engine.";
+    S.forEach(d => {
+      const box = el("details", "rounded-xl border border-neutral-800 bg-surface-1 px-4 py-3");
+      const sm = el("summary", "cursor-pointer text-sm flex items-center gap-3");
+      sm.appendChild(el("span", "font-mono text-xs text-neutral-500", "Day " + d.day)); sm.appendChild(el("span", "font-semibold text-neutral-100", d.title)); sm.appendChild(el("span", "text-xs text-emerald-400 ml-auto", d.bullets.length + "/" + d.bullets.length + " covered")); box.appendChild(sm);
+      const chips = el("div", "flex flex-wrap gap-1.5 mt-3");
+      d.bullets.forEach((b, i) => { const c = el("span", "px-2 py-0.5 rounded border border-neutral-700 text-xs text-neutral-300", "✓ " + b); c.title = by[d.day].notes[i]; chips.appendChild(c); });
+      box.appendChild(chips);
+      const a = el("a", "inline-block mt-3 text-xs text-emerald-400 hover:underline", "Open the lesson →"); a.href = "learn.html#day=" + d.day; box.appendChild(a);
+      document.getElementById("days").appendChild(box);
+    });
+  })();
+  </script>
+  <script src="../shared/pwa.js"></script>
+</body>
+</html>

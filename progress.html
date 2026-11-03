@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CmdCraft // My Progress</title>
+  <meta name="theme-color" content="#0a0a0a">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="shared/theme.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&display=swap">
+</head>
+<body class="bg-surface-0 text-neutral-200 font-sans min-h-screen">
+  <header class="border-b border-neutral-800 bg-surface-1 px-4 py-3">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <a href="./" class="font-extrabold text-xl text-emerald-400">CmdCraft</a>
+      <div class="flex items-center gap-4 text-xs text-neutral-400">
+        <a href="activity.html" class="hover:text-neutral-200"><i class="fa-solid fa-chart-line mr-1"></i>Activity log</a>
+        <a href="./" class="hover:text-neutral-200"><i class="fa-solid fa-arrow-left mr-1"></i>Hub</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 py-6 space-y-6">
+    <div>
+      <h1 class="text-xl font-bold text-neutral-100">My progress</h1>
+      <p class="text-sm text-neutral-400 mt-1">Everything you have done on this device, across every subject. It is stored in your browser; use Export to back it up or move it to another device.</p>
+    </div>
+    <div id="cards" class="grid sm:grid-cols-2 gap-4"></div>
+
+    <section class="rounded-xl border border-neutral-800 bg-surface-1 p-4 space-y-3">
+      <h2 class="text-sm font-bold text-neutral-200"><i class="fa-solid fa-floppy-disk mr-2 text-emerald-400"></i>Back up or move your progress</h2>
+      <p class="text-xs text-neutral-400">Export saves a small JSON file with all your CmdCraft progress (drill history, quiz marks, SQL solutions, settings). Import restores it, replacing what is on this device.</p>
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="btn-export" class="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-sm"><i class="fa-solid fa-download mr-1"></i>Export</button>
+        <label class="px-4 py-2 rounded-lg border border-neutral-700 text-sm hover:border-emerald-400 cursor-pointer"><i class="fa-solid fa-upload mr-1"></i>Import<input id="file" type="file" accept="application/json,.json" class="hidden"></label>
+        <span id="io-msg" class="text-xs text-neutral-400"></span>
+      </div>
+    </section>
+  </main>
+
+  <script src="linux/content/scenarios.js"></script>
+  <script src="linux/content/goals.js"></script>
+  <script src="linux/app/feedback.js"></script>
+  <script src="linux/content/curriculum.js"></script>
+  <script src="linux/content/drills-a.js"></script>
+  <script src="linux/content/drills-b.js"></script>
+  <script src="linux/content/drills-c.js"></script>
+  <script src="linux/content/drills-d.js"></script>
+  <script src="linux/content/drills-e.js"></script>
+  <script src="linux/content/drills-f.js"></script>
+  <script src="linux/content/drills-g.js"></script>
+  <script src="linux/content/incidents-more.js"></script>
+  <script src="linux/content/curriculum-end.js"></script>
+  <script src="linux/content/ref-1.js"></script>
+  <script src="linux/content/ref-2.js"></script>
+  <script src="linux/content/ref-3.js"></script>
+  <script src="linux/content/ref-4.js"></script>
+  <script src="linux/content/playbooks.js"></script>
+  <script src="linux/content/qa-linux.js"></script>
+  <script src="ai/content/qa-rag.js"></script>
+  <script src="ai/content/qa-langchain.js"></script>
+  <script src="ai/content/qa-langgraph.js"></script>
+  <script src="ai/content/qa-agents.js"></script>
+  <script src="ai/content/qa-llm.js"></script>
+  <script src="ai/content/qa-prod.js"></script>
+  <script src="ai/content/qa-ml.js"></script>
+  <script src="ai/content/qa-extra.js"></script>
+  <script src="ai/content/hard-rag.js"></script>
+  <script src="ai/content/hard-llm.js"></script>
+  <script src="ai/content/hard-agents.js"></script>
+  <script src="ai/content/hard-prod.js"></script>
+  <script src="ai/content/pro-rag.js"></script>
+  <script src="ai/content/pro-frameworks.js"></script>
+  <script src="ai/content/pro-llm.js"></script>
+  <script src="ai/content/pro-prod.js"></script>
+  <script src="ai/content/pro-coding.js"></script>
+  <script src="sql/content/syllabus.js"></script>
+  <script src="sql/content/problems.js"></script>
+  <script src="sql/content/datasets-extra.js"></script>
+  <script src="sql/content/problems-2.js"></script>
+  <script src="sql/content/problems-3.js"></script>
+  <script src="sql/content/problems-4.js"></script>
+  <script src="sql/content/problems-5.js"></script>
+  <script src="sql/content/problems-6.js"></script>
+  <script src="sql/content/problems-7.js"></script>
+  <script src="sql/content/problems-8.js"></script>
+  <script src="sql/content/problems-9.js"></script>
+  <script src="sql/content/qa-sql.js"></script>
+  <script>
+  (function () {
+    const $ = id => document.getElementById(id);
+    const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+    const get = (k, dflt) => { try { const v = localStorage.getItem(k); return v === null ? dflt : JSON.parse(v); } catch (e) { return dflt; } };
+    const hash = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
+
+    // ----- totals from the content that is actually shipped -----
+    const linuxDrills = (window.SCENARIOS || []).length + (window.SYLLABUS_INCIDENTS || []).length;
+    const cmds = (window.LINUX_REF || []).reduce((n, m) => n + m.cmds.length, 0);
+    const linuxQ = (window.LINUX_INTERVIEW || []);
+    const linuxQHashes = new Set(); linuxQ.forEach(m => m.topics.forEach(t => t.qa.forEach(i => linuxQHashes.add(hash(i.q)))));
+    const aiHashes = new Set();
+    (window.AI_INTERVIEW || []).forEach(m => { m.topics.forEach(t => t.qa.forEach(i => aiHashes.add(hash(i.q)))); [(window.AI_HARD || {})[m.id], (window.AI_PRO || {})[m.id]].forEach(list => (list || []).forEach(i => aiHashes.add(hash(i.q)))); });
+    const sqlN = (window.SQL_PROBLEMS || []).length, sqlDays = (window.SQL_SYLLABUS || []).length;
+    const sqlQHashes = new Set(); (window.SQL_INTERVIEW || []).forEach(m => m.topics.forEach(t => t.qa.forEach(i => sqlQHashes.add(hash(i.q)))));
+    const countMarks = (marks, set) => { let got = 0, rev = 0; Object.entries(marks || {}).forEach(([k, v]) => { if (!set.has(k)) return; if (v === "got") got++; else if (v === "revisit") rev++; }); return { got, rev }; };
+
+    // ----- the local data -----
+    const completed = get("cmdcraft_completed", []), stats = get("cmdcraft_stats", {}), xp = parseInt(localStorage.getItem("cmdcraft_xp") || "0", 10);
+    const due = Object.values(stats).filter(s => s.d <= Date.now()).length;
+    const linuxMarks = countMarks(get("cmdcraft.linux.interview.v1", {}), linuxQHashes);
+    const aiMarks = countMarks(get("cmdcraft.ai.interview.v2", {}), aiHashes);
+    const sql = get("cmdcraft.sql.v1", { solved: {}, xp: 0 });
+    const weak = Object.keys((get("cmdcraft.theory.v1", { weak: {} }).weak) || {}).length;
+
+    function bar(pct, cls) { const t = el("div", "h-2 rounded bg-neutral-800 overflow-hidden"); const f = el("div", "h-2 rounded " + (cls || "bg-emerald-400")); f.style.width = Math.max(0, Math.min(100, pct)) + "%"; t.appendChild(f); return t; }
+    function row(label, done, total, href) {
+      const r = el("div", "space-y-1");
+      const head = el("div", "flex justify-between text-xs"); const l = el(href ? "a" : "span", "text-neutral-300" + (href ? " hover:text-emerald-300" : ""), label); if (href) l.href = href;
+      head.appendChild(l); head.appendChild(el("span", "text-neutral-500", done + " / " + total + " · " + (total ? Math.round(100 * done / total) : 0) + "%")); r.appendChild(head); r.appendChild(bar(total ? 100 * done / total : 0)); return r;
+    }
+    function card(icon, title, href, rows, extra) {
+      const c = el("div", "rounded-xl border border-neutral-800 bg-surface-1 p-4 space-y-3");
+      const h = el("div", "flex items-center justify-between gap-2");
+      const t = el("div", "flex items-center gap-2 font-semibold text-neutral-100"); t.appendChild(el("i", icon + " text-emerald-400")); t.appendChild(document.createTextNode(title)); h.appendChild(t);
+      if (href) { const a = el("a", "text-xs text-emerald-300 hover:text-emerald-200", "Open →"); a.href = href; h.appendChild(a); }
+      c.appendChild(h); rows.forEach(r => c.appendChild(r)); if (extra) c.appendChild(extra); return c;
+    }
+    const cards = $("cards");
+    const dueNote = el("div", "text-xs rounded-md border px-3 py-2 " + (due ? "border-violet-500/40 bg-violet-500/10 text-violet-200" : "border-neutral-800 text-neutral-500"));
+    dueNote.appendChild(document.createTextNode(due ? due + " drill" + (due === 1 ? "" : "s") + " due for review. " : "No drills due for review. "));
+    if (due) { const a = el("a", "underline", "Review now"); a.href = "linux/?review=1"; dueNote.appendChild(a); }
+    cards.appendChild(card("fa-solid fa-terminal", "Linux practice", "linux/", [row("Drills solved (" + xp + " XP)", completed.length, linuxDrills, "linux/"), row("Drills ever attempted", Object.keys(stats).length, linuxDrills)], dueNote));
+    const theoryNote = el("div", "text-xs text-neutral-500"); theoryNote.textContent = weak ? weak + " command" + (weak === 1 ? "" : "s") + " in your quiz weak-spots list." : "Take the command quiz to find weak spots.";
+    cards.appendChild(card("fa-solid fa-book", "Linux theory", "linux/theory/", [row("Commands in the reference", cmds, cmds, "linux/theory/")], theoryNote));
+    cards.appendChild(card("fa-brands fa-linux", "Linux interview Q&A", "linux/interview.html", [row("Questions marked confident", linuxMarks.got, linuxQHashes.size, "linux/interview.html"), row("Marked to revisit", linuxMarks.rev, linuxQHashes.size)]));
+    cards.appendChild(card("fa-solid fa-brain", "AI interview Q&A", "ai/", [row("Questions marked confident", aiMarks.got, aiHashes.size, "ai/"), row("Marked to revisit", aiMarks.rev, aiHashes.size)]));
+    const sqlLessons = get("cmdcraft.sql.lessons.v1", { done: {} }), sqlMarks = countMarks(get("cmdcraft.sql.interview.v1", {}), sqlQHashes);
+    cards.appendChild(card("fa-solid fa-database", "SQL roadmap", "sql/", [row("Problems solved (" + (sql.xp || 0) + " XP)", Object.keys(sql.solved || {}).length, sqlN, "sql/practice.html"), row("Lessons read", Object.keys(sqlLessons.done || {}).length, sqlDays, "sql/learn.html"), row("Interview questions confident", sqlMarks.got, sqlQHashes.size, "sql/interview.html")]));
+
+    // ----- export / import -----
+    const mine = k => /^cmdcraft/i.test(k);
+    $("btn-export").addEventListener("click", () => {
+      const data = {}; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (mine(k)) data[k] = localStorage.getItem(k); }
+      const blob = new Blob([JSON.stringify({ app: "cmdcraft", version: 1, exported: new Date().toISOString(), data }, null, 2)], { type: "application/json" });
+      const a = el("a"); a.href = URL.createObjectURL(blob); a.download = "cmdcraft-progress-" + new Date().toISOString().slice(0, 10) + ".json"; document.body.appendChild(a); a.click(); a.remove();
+      $("io-msg").textContent = "Exported " + Object.keys(data).length + " settings.";
+    });
+    $("file").addEventListener("change", e => {
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = () => {
+        try {
+          const j = JSON.parse(r.result);
+          if (!j || j.app !== "cmdcraft" || typeof j.data !== "object") throw new Error("This is not a CmdCraft export.");
+          const keys = Object.keys(j.data).filter(mine);
+          if (!keys.length) throw new Error("The file contains no progress.");
+          if (!confirm("Replace the progress on this device with " + keys.length + " saved settings from " + (j.exported || "the file") + "?")) return;
+          for (let i = localStorage.length - 1; i >= 0; i--) { const k = localStorage.key(i); if (mine(k) && k !== "cmdcraft_theme") localStorage.removeItem(k); }
+          keys.forEach(k => { if (typeof j.data[k] === "string") localStorage.setItem(k, j.data[k]); });
+          $("io-msg").textContent = "Imported. Reloading…"; setTimeout(() => location.reload(), 600);
+        } catch (err) { $("io-msg").textContent = "Import failed: " + err.message; }
+      };
+      r.readAsText(f);
+    });
+  })();
+  </script>
+  <script src="shared/pwa.js"></script>
+</body>
+</html>

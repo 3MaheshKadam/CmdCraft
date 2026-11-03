@@ -1,0 +1,51 @@
+const { JSDOM } = require("jsdom"); const fs = require("fs"); const initSqlJs = require("sql.js");
+const dir = require("path").join(__dirname, "..") + "/";
+let pass = 0, fail = 0; const check = (n, c) => { (c ? pass++ : fail++); console.log(c ? "PASS" : "FAIL", n); };
+(async () => {
+  const raw = fs.readFileSync(dir + "sql/practice.html", "utf8");
+  const html = raw.replace(/<script src="https?:[^>]*><\/script>/g, "").replace(/<link [^>]*>/g, "").replace(/<script src="[^"]+"[^>]*><\/script>/g, "");
+  const dom = new JSDOM(html, { runScripts: "outside-only", pretendToBeVisual: true, url: "http://localhost/sql/practice.html" });
+  const w = dom.window; w.initSqlJs = () => initSqlJs(); w.confirm = () => true;
+  // every content script the page loads, in page order
+  raw.match(/<script src="(content|app)\/[^"]+"><\/script>/g).map(s => /src="([^"]+)"/.exec(s)[1]).forEach(f => w.eval(fs.readFileSync(dir + "sql/" + f, "utf8")));
+  const inline = html.match(/<script>([\s\S]*?)<\/script>/g).map(s => s.replace(/<\/?script>/g, "")).join("\n");
+  w.eval(inline);
+  const $ = id => w.document.getElementById(id); const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const N = w.SQL_PROBLEMS.length;
+  await sleep(500);
+  check("engine loads and the first problem shows", !$("problem").classList.contains("hidden") && $("p-id").textContent === "SEL-01");
+  check("sidebar lists every problem in collapsible modules", $("nav").querySelectorAll("button").length === N && $("nav").querySelectorAll("details").length >= 30 && /DDL/.test($("nav").textContent) && /Theory quiz/.test($("nav").textContent));
+  $("schema").parentElement.open = true;
+  check("schema shows tables with sample rows", /employees/.test($("schema").textContent) && /Alice Novak/.test($("schema").textContent));
+  $("editor").value = "SELECT name FROM employees;"; $("btn-run").click();
+  check("Run shows a result table", /13 rows/.test($("result").textContent));
+  $("editor").value = "SELEC 1"; $("btn-run").click();
+  check("syntax errors are shown", /syntax error/.test($("feedback").textContent));
+  $("editor").value = "SELECT name FROM employees;"; $("btn-check").click();
+  check("wrong answer gets specific feedback", /column|row|differ/i.test($("feedback").textContent) && !/Correct/.test($("feedback").textContent));
+  $("editor").value = "SELECT * FROM employees;"; $("btn-check").click();
+  check("correct answer is accepted with the explanation", /Correct/.test($("feedback").textContent) && !$("explain").classList.contains("hidden"));
+  check("progress and XP update", new RegExp("1/" + N + " solved · 20 XP").test($("stats").textContent) && !$("btn-next").classList.contains("hidden"));
+  $("btn-next").click();
+  check("next problem opens", $("p-id").textContent === "SEL-02" && $("feedback").classList.contains("hidden"));
+  $("btn-hint").click(); check("hint reveals", !$("hint").classList.contains("hidden"));
+  $("btn-solution").click(); check("solution reveals", /SELECT name, salary/.test($("solution-sql").textContent));
+  check("progress persists", Object.keys(JSON.parse(w.localStorage.getItem("cmdcraft.sql.v1")).solved).length === 1);
+  const open = id => { const p = w.SQL_PROBLEMS.find(x => x.id === id); [...$("nav").querySelectorAll("button")].find(b => b.textContent === p.title && b.closest("details")).click(); return p; };
+  const dml = open("DML-01"); $("editor").value = dml.solution; $("btn-check").click();
+  check("a DML problem is judged by the resulting table", /Correct/.test($("feedback").textContent));
+  // MySQL syntax through the compatibility layer, and a behavioural constraint check
+  const ddl = open("DDL-02"); check("a MySQL DDL problem opens", $("p-id").textContent === "DDL-02");
+  $("editor").value = ddl.solution; $("btn-check").click();
+  check("MySQL AUTO_INCREMENT syntax is accepted", /Correct/.test($("feedback").textContent));
+  open("CON-01"); $("editor").value = "CREATE TABLE members (id INTEGER PRIMARY KEY, email TEXT, age INTEGER);"; $("btn-check").click();
+  check("a table missing its constraints is rejected", !/Correct/.test($("feedback").textContent));
+  // a multiple-choice question
+  const mcq = w.SQL_PROBLEMS.find(p => p.kind === "mcq"); open(mcq.title === undefined ? "" : mcq.id);
+  check("a quiz question hides the editor and shows options", $("editor-box").classList.contains("hidden") && $("mcq").querySelectorAll("button").length === mcq.options.length);
+  const bad = [...$("mcq").querySelectorAll("button")].find((b, i) => i !== mcq.answer); bad.click();
+  check("a wrong option is marked wrong", /Not quite/.test($("feedback").textContent));
+  [...$("mcq").querySelectorAll("button")][mcq.answer].click();
+  check("the right option is accepted with the explanation", /Correct/.test($("feedback").textContent) && !$("explain").classList.contains("hidden") && !!JSON.parse(w.localStorage.getItem("cmdcraft.sql.v1")).solved[mcq.id]);
+  console.log(pass + " passed, " + fail + " failed"); process.exit(fail ? 1 : 0);
+})();

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CmdCraft // SQL Lab</title>
+  <meta name="theme-color" content="#0a0a0a">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="../shared/theme.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&display=swap">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+</head>
+<body class="bg-surface-0 text-neutral-200 font-sans min-h-screen">
+  <header class="border-b border-neutral-800 bg-surface-1 px-4 py-3 sticky top-0 z-20">
+    <div class="max-w-5xl mx-auto flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <a href="../" class="font-extrabold text-xl text-emerald-400">CmdCraft</a>
+        <a href="./" class="text-neutral-500 text-sm hover:text-neutral-300"><i class="fa-solid fa-database mr-1"></i>SQL</a><span class="text-neutral-600">/</span><span class="text-neutral-300 text-sm">Lab</span>
+      </div>
+      <a href="./" class="text-xs text-neutral-400 hover:text-neutral-200"><i class="fa-solid fa-map mr-1"></i>Roadmap</a>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-4 py-6 space-y-6">
+    <div class="flex gap-2 text-sm">
+      <button id="tab-isolation" class="px-4 py-2 rounded-lg border border-neutral-700">Concurrency and isolation</button>
+      <button id="tab-index" class="px-4 py-2 rounded-lg border border-neutral-700">Indexes and EXPLAIN</button>
+    </div>
+
+    <!-- ISOLATION -->
+    <section id="isolation" class="space-y-4 hidden">
+      <p class="text-sm text-neutral-400 max-w-3xl">A browser cannot host two real database sessions, so this is a <strong>simulator</strong> of how a MySQL/PostgreSQL-style engine behaves at each isolation level (snapshot reads, locks held until commit). Pick a scenario and a level, then step through the timeline. Table <span class="font-mono">acct</span>: row x = 100.</p>
+      <div class="flex flex-wrap gap-3 text-sm">
+        <label class="space-y-1"><div class="text-xs text-neutral-500">Scenario</div><select id="iso-scn" class="px-3 py-2 rounded-lg bg-surface-1 border border-neutral-700"></select></label>
+        <label class="space-y-1"><div class="text-xs text-neutral-500">Isolation level</div><select id="iso-lvl" class="px-3 py-2 rounded-lg bg-surface-1 border border-neutral-700"></select></label>
+      </div>
+      <p id="iso-desc" class="text-sm text-neutral-300"></p>
+      <div class="grid grid-cols-2 gap-3 text-xs">
+        <div class="font-semibold text-sky-300">Session A</div><div class="font-semibold text-amber-300">Session B</div>
+      </div>
+      <div id="iso-steps" class="space-y-2"></div>
+      <div class="flex gap-2"><button id="iso-next" class="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-sm">Next step</button><button id="iso-reset" class="px-4 py-2 rounded-lg border border-neutral-700 text-sm">Reset</button></div>
+      <div id="iso-verdict" class="hidden rounded-lg border px-3 py-2 text-sm"></div>
+    </section>
+
+    <!-- INDEX -->
+    <section id="index" class="space-y-4 hidden">
+      <p class="text-sm text-neutral-400 max-w-3xl">A real SQLite table of 20,000 users is built in your browser. Run the same lookups with and without an index and compare the query plan and the time. (Absolute times depend on your device; the ratio is the point.)</p>
+      <div id="idx-status" class="text-sm text-neutral-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Building the 20,000-row table…</div>
+      <div id="idx-ui" class="hidden space-y-4">
+        <div class="rounded-xl border border-neutral-800 bg-surface-1 p-4 space-y-3">
+          <div class="text-sm font-semibold text-neutral-100">Experiment 1: lookup by email</div>
+          <pre class="font-mono text-xs text-neutral-300">SELECT * FROM users WHERE email = 'user19999@mail.com';</pre>
+          <div class="flex flex-wrap gap-2 text-sm">
+            <button data-act="run1" class="px-3 py-1.5 rounded-lg border border-neutral-600 hover:border-emerald-400">Run and explain</button>
+            <button data-act="mk1" class="px-3 py-1.5 rounded-lg border border-neutral-600 hover:border-emerald-400">CREATE INDEX idx_email</button>
+            <button data-act="rm1" class="px-3 py-1.5 rounded-lg border border-neutral-600 hover:border-red-400">DROP INDEX idx_email</button>
+          </div>
+          <div id="out1" class="text-sm space-y-1"></div>
+        </div>
+        <div class="rounded-xl border border-neutral-800 bg-surface-1 p-4 space-y-3">
+          <div class="text-sm font-semibold text-neutral-100">Experiment 2: composite index and the leftmost-prefix rule</div>
+          <pre class="font-mono text-xs text-neutral-300">CREATE INDEX idx_city_age ON users(city, age);</pre>
+          <div class="flex flex-wrap gap-2 text-sm">
+            <button data-act="mk2" class="px-3 py-1.5 rounded-lg border border-neutral-600 hover:border-emerald-400">Create idx_city_age</button>
+            <button data-act="q2a" class="px-3 py-1.5 rounded-lg border border-neutral-600 hover:border-emerald-400">WHERE city = 'City7'</button>
+            <button data-act="q2b" class="px-3 py-1.5 rounded-lg border border-neutral-600 hover:border-emerald-400">WHERE city = 'City7' AND age = 30</button>
+            <button data-act="q2c" class="px-3 py-1.5 rounded-lg border border-neutral-600 hover:border-emerald-400">WHERE age = 30 (skips the first column)</button>
+            <button data-act="q2d" class="px-3 py-1.5 rounded-lg border border-neutral-600 hover:border-emerald-400">SELECT city, age ... (covering)</button>
+          </div>
+          <div id="out2" class="text-sm space-y-1"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+  (function () {
+    const $ = id => document.getElementById(id);
+    const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+
+    // ---------- tabs ----------
+    function tab(name) {
+      ["isolation", "index"].forEach(t => { $(t).classList.toggle("hidden", t !== name); $("tab-" + t).className = "px-4 py-2 rounded-lg border " + (t === name ? "border-emerald-400 bg-emerald-500/10 text-neutral-100" : "border-neutral-700 text-neutral-300"); });
+      try { history.replaceState(null, "", "#" + name); } catch (e) { /* file:// */ }
+      if (name === "index") startIndexLab();
+    }
+    $("tab-isolation").addEventListener("click", () => tab("isolation")); $("tab-index").addEventListener("click", () => tab("index"));
+
+    // ---------- isolation simulator ----------
+    const LEVELS = [["RU", "READ UNCOMMITTED"], ["RC", "READ COMMITTED"], ["RR", "REPEATABLE READ"], ["SER", "SERIALIZABLE"]];
+    const lv = id => LEVELS.findIndex(l => l[0] === id);
+    // Each scenario: description and build(level) -> { steps:[{who, sql, out, note?}], verdict:{bad, text} }
+    const SCENARIOS = {
+      dirty: { name: "Dirty read", desc: "A changes x but has not committed. B reads x. Then A rolls back.",
+        build(L) { const dirty = L === "RU";
+          return { steps: [
+            { who: "A", sql: "BEGIN; UPDATE acct SET v = 0 WHERE id = 'x';", out: "x is now 0 (uncommitted)" },
+            { who: "B", sql: "BEGIN; SELECT v FROM acct WHERE id = 'x';", out: dirty ? "v = 0   (dirty: A has not committed)" : "v = 100", note: dirty ? "READ UNCOMMITTED sees A's pending change." : "Only committed data is visible." },
+            { who: "A", sql: "ROLLBACK;", out: "x is back to 100" },
+            { who: "B", sql: "COMMIT;", out: dirty ? "B acted on a value that never existed" : "B saw consistent data" }],
+            verdict: { bad: dirty, text: dirty ? "Dirty read happened: B used 0, a value that was rolled back." : "No dirty read: B only saw committed data." } }; } },
+      nonrep: { name: "Non-repeatable read", desc: "B reads x twice in one transaction while A commits a change in between.",
+        build(L) { const changed = lv(L) <= 1;
+          return { steps: [
+            { who: "B", sql: "BEGIN; SELECT v FROM acct WHERE id = 'x';", out: "v = 100" },
+            { who: "A", sql: "BEGIN; UPDATE acct SET v = 150 WHERE id = 'x'; COMMIT;", out: "x = 150 (committed)" },
+            { who: "B", sql: "SELECT v FROM acct WHERE id = 'x';", out: changed ? "v = 150   (different from the first read)" : "v = 100   (same snapshot)", note: changed ? "Each statement gets a fresh view of committed data." : "The transaction keeps the snapshot taken at its first read." },
+            { who: "B", sql: "COMMIT;", out: "" }],
+            verdict: { bad: changed, text: changed ? "Non-repeatable read: the same row returned 100 then 150." : "Repeatable: both reads returned 100." } }; } },
+      phantom: { name: "Phantom read", desc: "B counts rows with v >= 100 twice while A inserts a matching row in between.",
+        build(L) { const l = lv(L), phantom = l <= 1;
+          return { steps: [
+            { who: "B", sql: "BEGIN; SELECT COUNT(*) FROM acct WHERE v >= 100;", out: "count = 1" },
+            { who: "A", sql: "BEGIN; INSERT INTO acct VALUES ('y', 300); COMMIT;", out: l === 3 ? "A WAITS: B's range is locked until B finishes; the insert then proceeds" : "row y = 300 (committed)" },
+            { who: "B", sql: "SELECT COUNT(*) FROM acct WHERE v >= 100;", out: phantom ? "count = 2   (a phantom row appeared)" : "count = 1", note: l === 2 ? "InnoDB's snapshot (and gap locks on locking reads) hides the new row. The SQL standard still permits phantoms at this level; PostgreSQL's REPEATABLE READ also prevents them." : "" },
+            { who: "B", sql: "COMMIT;", out: l === 3 ? "A's insert completes now" : "" }],
+            verdict: { bad: phantom, text: phantom ? "Phantom read: a new row matched the same query." : "No phantom: the result set was stable." } }; } },
+      lost: { name: "Lost update", desc: "A and B both read x = 100 in the application, add 10 and 20, and write back the computed value.",
+        build(L) { const ser = L === "SER";
+          const steps = [
+            { who: "A", sql: "BEGIN; SELECT v FROM acct WHERE id = 'x';", out: "v = 100  (app computes 110)" },
+            { who: "B", sql: "BEGIN; SELECT v FROM acct WHERE id = 'x';", out: "v = 100  (app computes 120)" }];
+          if (ser) { steps.push({ who: "A", sql: "UPDATE acct SET v = 110 WHERE id = 'x';", out: "WAITS: B holds a shared lock on x" }, { who: "B", sql: "UPDATE acct SET v = 120 WHERE id = 'x';", out: "DEADLOCK detected: B is rolled back", note: "Both hold shared locks and want an exclusive one: the engine kills one." }, { who: "A", sql: "COMMIT;", out: "x = 110. B must retry and will now read 110." });
+            return { steps, verdict: { bad: false, text: "Serializable prevented the lost update, at the price of a deadlock/retry." } }; }
+          steps.push({ who: "A", sql: "UPDATE acct SET v = 110 WHERE id = 'x'; COMMIT;", out: "x = 110" }, { who: "B", sql: "UPDATE acct SET v = 120 WHERE id = 'x'; COMMIT;", out: "x = 120   (A's +10 is lost)", note: "B overwrote A's change with a value computed from stale data." });
+          return { steps, verdict: { bad: true, text: "Lost update: the correct result is 130. Fix it with UPDATE acct SET v = v + 10 (atomic), SELECT ... FOR UPDATE, or a version column." } }; } },
+      deadlock: { name: "Deadlock", desc: "A locks row 1 then wants row 2; B locks row 2 then wants row 1. Independent of the isolation level.",
+        build() { return { steps: [
+          { who: "A", sql: "BEGIN; UPDATE acct SET v = v - 10 WHERE id = 1;", out: "A holds an exclusive lock on row 1" },
+          { who: "B", sql: "BEGIN; UPDATE acct SET v = v - 10 WHERE id = 2;", out: "B holds an exclusive lock on row 2" },
+          { who: "A", sql: "UPDATE acct SET v = v + 10 WHERE id = 2;", out: "A WAITS for B" },
+          { who: "B", sql: "UPDATE acct SET v = v + 10 WHERE id = 1;", out: "ERROR 1213 Deadlock found: B is the victim and rolls back", note: "Each waits for the other forever; the engine detects the cycle and aborts one transaction." },
+          { who: "A", sql: "COMMIT;", out: "A completes. The application should retry B." }],
+          verdict: { bad: true, text: "Deadlock. Prevent it by always locking rows in the same order (lowest id first) and retrying on error 1213." } }; } }
+    };
+    let steps = [], shown = 0, verdict = null;
+    function isoBuild() {
+      const s = SCENARIOS[$("iso-scn").value], b = s.build($("iso-lvl").value);
+      steps = b.steps; verdict = b.verdict; shown = 0; $("iso-desc").textContent = s.desc; $("iso-steps").replaceChildren(); $("iso-verdict").classList.add("hidden"); $("iso-next").disabled = false; $("iso-next").classList.remove("opacity-40");
+    }
+    function isoNext() {
+      if (shown >= steps.length) return; const st = steps[shown++];
+      const row = el("div", "grid grid-cols-2 gap-3"), card = el("div", "rounded-lg border px-3 py-2 text-xs space-y-1 " + (st.who === "A" ? "border-sky-500/40 bg-sky-500/10" : "border-amber-500/40 bg-amber-500/10"));
+      card.appendChild(el("div", "font-mono text-neutral-100 break-words", st.sql)); if (st.out) card.appendChild(el("div", "text-neutral-200", "→ " + st.out)); if (st.note) card.appendChild(el("div", "text-neutral-400 italic", st.note));
+      const gap = el("div"); if (st.who === "A") { row.appendChild(card); row.appendChild(gap); } else { row.appendChild(gap); row.appendChild(card); }
+      $("iso-steps").appendChild(row);
+      if (shown >= steps.length) { const v = $("iso-verdict"); v.classList.remove("hidden"); v.className = "rounded-lg border px-3 py-2 text-sm " + (verdict.bad ? "border-red-500/40 bg-red-500/10 text-red-100" : "border-emerald-500/40 bg-emerald-500/10 text-emerald-100"); v.textContent = verdict.text; $("iso-next").disabled = true; $("iso-next").classList.add("opacity-40"); }
+    }
+    Object.keys(SCENARIOS).forEach(k => { const o = el("option", "", SCENARIOS[k].name); o.value = k; $("iso-scn").appendChild(o); });
+    LEVELS.forEach(l => { const o = el("option", "", l[1]); o.value = l[0]; $("iso-lvl").appendChild(o); }); $("iso-lvl").value = "RC";
+    $("iso-scn").addEventListener("change", isoBuild); $("iso-lvl").addEventListener("change", isoBuild); $("iso-next").addEventListener("click", isoNext); $("iso-reset").addEventListener("click", isoBuild); isoBuild();
+
+    // ---------- index lab ----------
+    let db = null, started = false;
+    function planText(sql) { const r = db.exec("EXPLAIN QUERY PLAN " + sql); return r.length ? r[0].values.map(v => v[3]).join(" | ") : ""; }
+    function timeIt(sql, n) { const t0 = performance.now(); for (let i = 0; i < n; i++) db.exec(sql); return (performance.now() - t0) / n; }
+    function report(boxId, sql, n) {
+      const box = $(boxId); box.replaceChildren(); const plan = planText(sql), ms = timeIt(sql, n);
+      const scan = /^SCAN|SCAN users/.test(plan) && !/USING (COVERING )?INDEX/.test(plan);
+      box.appendChild(el("pre", "font-mono text-xs text-neutral-300 whitespace-pre-wrap", sql));
+      box.appendChild(el("div", scan ? "text-amber-300" : "text-emerald-300", "Plan: " + plan));
+      box.appendChild(el("div", "text-neutral-300", "Average time: " + ms.toFixed(3) + " ms over " + n + " runs" + (scan ? "  (full scan: every row is read)" : "  (index search)")));
+    }
+    function startIndexLab() {
+      if (started) return; started = true;
+      if (typeof initSqlJs !== "function") { $("idx-status").textContent = "The SQLite engine could not be loaded (CDN). Check your connection and reload."; return; }
+      initSqlJs({ locateFile: f => "https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/" + f }).then(SQL => {
+        db = new SQL.Database();
+        db.exec("CREATE TABLE users(id INTEGER PRIMARY KEY, email TEXT, city TEXT, age INTEGER); WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 20000) INSERT INTO users SELECT i, 'user' || i || '@mail.com', 'City' || (i % 50), 18 + (i % 60) FROM n;");
+        $("idx-status").classList.add("hidden"); $("idx-ui").classList.remove("hidden");
+        const Q1 = "SELECT * FROM users WHERE email = 'user19999@mail.com'", acts = {
+          run1: () => report("out1", Q1, 30),
+          mk1: () => { db.exec("CREATE INDEX IF NOT EXISTS idx_email ON users(email)"); $("out1").replaceChildren(el("div", "text-emerald-300", "Index idx_email created. Now run the query again.")); },
+          rm1: () => { db.exec("DROP INDEX IF EXISTS idx_email"); $("out1").replaceChildren(el("div", "text-amber-300", "Index dropped.")); },
+          mk2: () => { db.exec("CREATE INDEX IF NOT EXISTS idx_city_age ON users(city, age)"); $("out2").replaceChildren(el("div", "text-emerald-300", "Index idx_city_age created. Try the four queries.")); },
+          q2a: () => report("out2", "SELECT * FROM users WHERE city = 'City7'", 30),
+          q2b: () => report("out2", "SELECT * FROM users WHERE city = 'City7' AND age = 30", 30),
+          q2c: () => report("out2", "SELECT * FROM users WHERE age = 30", 30),
+          q2d: () => report("out2", "SELECT city, age FROM users WHERE city = 'City7' AND age = 30", 30)
+        };
+        document.querySelectorAll("[data-act]").forEach(b => b.addEventListener("click", () => acts[b.dataset.act]()));
+      }).catch(e => { $("idx-status").textContent = "Could not start the SQLite engine: " + (e && e.message ? e.message : e); });
+    }
+
+    tab(location.hash === "#index" ? "index" : "isolation");
+  })();
+  </script>
+  <script src="../shared/pwa.js"></script>
+</body>
+</html>

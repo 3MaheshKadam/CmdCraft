@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CmdCraft // SQL Lessons</title>
+  <meta name="theme-color" content="#0a0a0a">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="../shared/theme.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&display=swap">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+</head>
+<body class="bg-surface-0 text-neutral-200 font-sans min-h-screen">
+  <header class="border-b border-neutral-800 bg-surface-1 px-4 py-3 sticky top-0 z-20">
+    <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <a href="../" class="font-extrabold text-xl text-emerald-400">CmdCraft</a>
+        <a href="./" class="text-neutral-500 text-sm hover:text-neutral-300"><i class="fa-solid fa-database mr-1"></i>SQL</a><span class="text-neutral-600">/</span><span class="text-neutral-300 text-sm">Lessons</span>
+      </div>
+      <div class="flex items-center gap-2 text-xs">
+        <a href="practice.html" id="practice-link" class="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-semibold"><i class="fa-solid fa-terminal mr-1"></i>Practice</a>
+        <a href="./" class="text-neutral-400 hover:text-neutral-200"><i class="fa-solid fa-map mr-1"></i>Roadmap</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-6xl mx-auto px-4 py-5 grid md:grid-cols-[250px_1fr] gap-6">
+    <aside class="space-y-3 md:sticky md:top-20 md:self-start md:max-h-[calc(100vh-6rem)] md:overflow-y-auto pr-1">
+      <input id="search" type="search" placeholder="Search all topics…" class="w-full px-3 py-2 rounded-lg bg-surface-1 border border-neutral-700 text-sm focus:outline-none focus:border-emerald-400">
+      <nav id="nav" class="space-y-3"></nav>
+    </aside>
+    <main class="min-w-0 space-y-5" id="main"></main>
+  </div>
+
+  <script src="content/syllabus.js"></script>
+  <script src="content/lessons-1.js"></script>
+  <script src="content/lessons-2.js"></script>
+  <script src="content/lessons-3.js"></script>
+  <script src="content/lessons-4.js"></script>
+  <script src="content/lessons-5.js"></script>
+  <script src="content/problems.js"></script>
+  <script src="content/datasets-extra.js"></script>
+  <script src="app/compat.js"></script>
+  <script src="app/judge.js"></script>
+  <script>
+  (function () {
+    const $ = id => document.getElementById(id);
+    const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+    const KEY = "cmdcraft.sql.lessons.v1";
+    const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || { done: {} }; } catch (e) { return { done: {} }; } };
+    const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* private mode */ } };
+    let state = load();
+    const S = window.SQL_SYLLABUS, L = window.SQL_LESSONS, byDay = {}; L.forEach(l => { byDay[l.day] = l; });
+    let engine = null, cur = 0, query = "";
+    const MOD0 = { 0: "theory", 1: "theory", 2: "theory", 3: "ddl", 4: "cons", 5: "dml2", 6: "select", 7: "ops", 8: "aggx", 9: "aggx", 10: "aggx", 11: "joinx", 12: "joinx", 13: "subx", 14: "setop", 15: "casex", 16: "winx", 17: "cte", 18: "datex", 19: "strx", 20: "rep", 21: "view", 22: "theory", 23: "trig", 24: "tx", 25: "theory", 26: "idx", 27: "idx", 28: "design", 29: "design", 30: "idx", 31: "int1", 32: "int2", 33: "sql50", 34: "theory", 35: "pj1", 36: "pj2", 37: "pj3" };
+
+    function startEngine() {
+      if (engine) return engine;
+      if (typeof initSqlJs !== "function") return Promise.reject(new Error("The SQLite engine could not be loaded (CDN). Check your connection."));
+      engine = initSqlJs({ locateFile: f => "https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/" + f }).then(SQL => { window.SQLJudge.setEngine(SQL); return SQL; });
+      return engine;
+    }
+    function table(res) {
+      const wrap = el("div", "overflow-x-auto"), t = el("table", "text-[12px] font-mono border-collapse"), h = el("tr");
+      res.columns.forEach(c => h.appendChild(el("th", "text-left px-2 py-1 border border-neutral-700 bg-neutral-800/60 text-amber-300", c))); t.appendChild(h);
+      res.values.slice(0, 30).forEach(r => { const tr = el("tr"); r.forEach(v => tr.appendChild(el("td", "px-2 py-1 border border-neutral-800 " + (v === null ? "text-neutral-500 italic" : "text-neutral-200"), v === null ? "NULL" : String(v)))); t.appendChild(tr); });
+      wrap.appendChild(t); if (res.values.length > 30) wrap.appendChild(el("div", "text-[11px] text-neutral-500", res.values.length + " rows (first 30 shown)")); return wrap;
+    }
+    function section(title, icon) { const s = el("section", "rounded-xl border border-neutral-800 bg-surface-1 p-4 space-y-2"); const h = el("h2", "text-sm font-semibold text-neutral-100"); h.appendChild(el("i", "fa-solid " + icon + " text-emerald-400 mr-2")); h.appendChild(document.createTextNode(title)); s.appendChild(h); return s; }
+
+    function drawNav() {
+      const nav = $("nav"); nav.replaceChildren();
+      window.SQL_LEVELS.forEach(lv => {
+        const g = el("div", "space-y-1"); g.appendChild(el("div", "text-[10px] uppercase tracking-wide text-emerald-400 px-1", lv.name.replace(/^Level \d: /, "L" + lv.id + " · ")));
+        S.filter(d => d.level === lv.id).forEach(d => {
+          const b = el("button", "w-full text-left px-3 py-1.5 rounded-lg border text-sm flex items-center gap-2 " + (d.day === cur ? "border-emerald-400 bg-emerald-500/10 text-neutral-100" : "border-neutral-800 text-neutral-300 hover:border-neutral-600"));
+          b.appendChild(el("i", "fa-solid " + (state.done[d.day] ? "fa-circle-check text-emerald-400" : "fa-circle text-neutral-700") + " text-[10px]"));
+          b.appendChild(el("span", "truncate", "Day " + d.day + " · " + d.title)); b.addEventListener("click", () => open(d.day)); g.appendChild(b);
+        });
+        nav.appendChild(g);
+      });
+    }
+
+    function open(day) {
+      cur = day; query = ""; $("search").value = "";
+      try { history.replaceState(null, "", "#day=" + day); } catch (e) { /* file:// */ }
+      const d = S.find(x => x.day === day), l = byDay[day], main = $("main"); main.replaceChildren();
+      $("practice-link").href = "practice.html#mod=" + (MOD0[day] || "select");
+      const hd = el("div", "space-y-1"); hd.appendChild(el("div", "text-xs text-neutral-500 font-mono", "Day " + day + " · " + window.SQL_LEVELS.find(v => v.id === d.level).name));
+      hd.appendChild(el("h1", "text-xl font-bold text-neutral-100", d.title)); hd.appendChild(el("p", "text-sm text-neutral-300 leading-relaxed", l.intro)); main.appendChild(hd);
+
+      const topics = section("Topics (" + d.bullets.length + ")", "fa-list"); const dl = el("dl", "space-y-2");
+      d.bullets.forEach((b, i) => { const row = el("div", "grid sm:grid-cols-[210px_1fr] gap-x-4 text-sm"); row.appendChild(el("dt", "font-semibold text-emerald-300", b)); row.appendChild(el("dd", "text-neutral-300", l.notes[i])); dl.appendChild(row); });
+      topics.appendChild(dl); main.appendChild(topics);
+
+      if (l.example) {
+        const ex = section("Try it", "fa-play"); ex.appendChild(el("p", "text-xs text-neutral-400", l.example.caption + (l.example.noRun ? " (MySQL code to read: SQLite in the browser cannot run it.)" : "")));
+        const ta = el("textarea", "w-full px-3 py-2 rounded-lg bg-black/60 border border-neutral-700 font-mono text-[12px] leading-5 text-neutral-100 focus:outline-none focus:border-emerald-400"); ta.rows = Math.min(12, l.example.sql.split("\n").length + 2); ta.value = l.example.sql; ta.spellcheck = false; ex.appendChild(ta);
+        if (!l.example.noRun) {
+          const row = el("div", "flex items-center gap-3"), btn = el("button", "px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-sm"), out = el("div", "space-y-2");
+          btn.appendChild(el("i", "fa-solid fa-play mr-1")); btn.appendChild(document.createTextNode("Run")); row.appendChild(btn); row.appendChild(el("span", "text-xs text-neutral-500", "Dataset: " + window.SQL_DATASETS[l.example.ds].name + " (fresh copy every run)")); ex.appendChild(row); ex.appendChild(out);
+          btn.addEventListener("click", () => {
+            out.replaceChildren(el("div", "text-xs text-neutral-400", "Starting the SQLite engine…"));
+            startEngine().then(() => {
+              const r = window.SQLJudge.run(l.example.ds, ta.value); out.replaceChildren();
+              if (r.error) out.appendChild(el("div", "text-sm text-red-300", "Error: " + r.error));
+              else if (!r.results.length) out.appendChild(el("div", "text-sm text-neutral-500", "Statements executed (no rows returned)."));
+              else r.results.slice(-4).forEach(res => out.appendChild(table(res)));
+              r.db.close();
+            }).catch(e => { out.replaceChildren(el("div", "text-sm text-amber-300", e.message)); });
+          });
+        }
+        main.appendChild(ex);
+      }
+
+      const sec2 = section("How it works inside", "fa-gears"); sec2.appendChild(el("p", "text-sm text-neutral-300 leading-relaxed", l.internals)); main.appendChild(sec2);
+      const sec3 = section("Common mistakes", "fa-triangle-exclamation"); const ul = el("ul", "list-disc ml-5 text-sm text-neutral-300 space-y-1"); l.mistakes.forEach(m => ul.appendChild(el("li", "", m))); sec3.appendChild(ul); main.appendChild(sec3);
+      const sec4 = section("Interview questions", "fa-user-tie");
+      l.interview.forEach(([q, a]) => { const dt = el("details", "rounded-lg border border-neutral-800 px-3 py-2"); dt.appendChild(el("summary", "cursor-pointer text-sm text-neutral-200", q)); dt.appendChild(el("p", "text-sm text-neutral-300 mt-2", a)); sec4.appendChild(dt); });
+      if (day === 34) { const a = el("a", "inline-block mt-2 px-3 py-1.5 rounded-lg bg-emerald-500 text-black font-semibold text-sm", "Open the mock interview"); a.href = "interview.html"; sec4.appendChild(a); }
+      main.appendChild(sec4);
+      const sec5 = section("Revision checklist", "fa-clipboard-check"); const rl = el("ul", "text-sm text-neutral-300 space-y-1"); l.revise.forEach(r => { const li = el("li"); li.appendChild(el("i", "fa-regular fa-square-check text-emerald-400 mr-2")); li.appendChild(document.createTextNode(r)); rl.appendChild(li); }); sec5.appendChild(rl); main.appendChild(sec5);
+
+      const foot = el("div", "flex flex-wrap items-center gap-2");
+      const done = el("button", "px-4 py-2 rounded-lg text-sm font-semibold " + (state.done[day] ? "border border-emerald-500 text-emerald-300" : "bg-emerald-500 text-black hover:bg-emerald-400"), state.done[day] ? "Read ✓ (click to undo)" : "Mark lesson as read");
+      done.addEventListener("click", () => { if (state.done[day]) delete state.done[day]; else state.done[day] = Date.now(); save(); open(day); }); foot.appendChild(done);
+      const pr = el("a", "px-4 py-2 rounded-lg border border-neutral-700 text-sm text-neutral-200 hover:border-emerald-400", "Practice this day"); pr.href = $("practice-link").href; foot.appendChild(pr);
+      if (l.lab) { const lb = el("a", "px-4 py-2 rounded-lg border border-neutral-700 text-sm text-neutral-200 hover:border-emerald-400", "Open the lab"); lb.href = "lab.html#" + l.lab; foot.appendChild(lb); }
+      const nx = S.find(x => x.day === day + 1); if (nx) { const n = el("button", "ml-auto px-4 py-2 rounded-lg border border-neutral-700 text-sm text-neutral-200 hover:border-emerald-400", "Next: Day " + nx.day + " →"); n.addEventListener("click", () => { open(nx.day); window.scrollTo(0, 0); }); foot.appendChild(n); }
+      main.appendChild(foot); drawNav();
+    }
+
+    function openSearch(q) {
+      const main = $("main"); main.replaceChildren(); const needle = q.toLowerCase(); let n = 0;
+      const box = section("Results for “" + q + "”", "fa-magnifying-glass"); const list = el("div", "space-y-2");
+      S.forEach(d => d.bullets.forEach((b, i) => {
+        const note = byDay[d.day].notes[i];
+        if ((b + " " + note).toLowerCase().indexOf(needle) < 0 || n >= 60) return; n++;
+        const row = el("button", "w-full text-left rounded-lg border border-neutral-800 px-3 py-2 hover:border-emerald-400");
+        row.appendChild(el("div", "text-xs text-neutral-500 font-mono", "Day " + d.day + " · " + d.title)); row.appendChild(el("div", "text-sm font-semibold text-emerald-300", b)); row.appendChild(el("div", "text-sm text-neutral-300", note));
+        row.addEventListener("click", () => { $("search").value = ""; open(d.day); }); list.appendChild(row);
+      }));
+      if (!n) list.appendChild(el("div", "text-sm text-neutral-500", "No topic matches.")); box.appendChild(list); main.appendChild(box);
+    }
+    $("search").addEventListener("input", e => { query = e.target.value.trim(); if (query.length >= 2) openSearch(query); else open(cur); });
+
+    const m = /day=(\d+)/.exec(location.hash), first = S.find(d => !state.done[d.day]);
+    open(m && byDay[+m[1]] ? +m[1] : (first ? first.day : 0));
+  })();
+  </script>
+  <script src="../shared/pwa.js"></script>
+</body>
+</html>

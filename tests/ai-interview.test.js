@@ -1,0 +1,46 @@
+const { JSDOM } = require("jsdom"); const fs = require("fs");
+const dir = require("path").join(__dirname, "..") + "/";
+let pass = 0, fail = 0; const check = (n, c) => { (c ? pass++ : fail++); console.log(c ? "PASS" : "FAIL", n); };
+function page(file) {
+  const raw = fs.readFileSync(dir + file, "utf8");
+  const html = raw.replace(/<script src="https?:[^>]*><\/script>/g, "").replace(/<link [^>]*>/g, "").replace(/<script src="[^"]+"[^>]*><\/script>/g, "");
+  const dom = new JSDOM(html, { runScripts: "outside-only", pretendToBeVisual: true, url: "http://localhost/" });
+  const w = dom.window;
+  [...raw.matchAll(/<script src="([^"h][^"]*)"/g)].map(m => m[1]).filter(s => !/theme/.test(s)).forEach(s => w.eval(fs.readFileSync(dir + (file.includes("/") ? file.split("/")[0] + "/" : "") + s, "utf8")));
+  w.eval([...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]).join("\n")); return w;
+}
+let w = page("ai/index.html"); let $ = id => w.document.getElementById(id);
+const navText = $("modules").textContent;
+check("sidebar is grouped into study sections", ["Foundations", "Retrieval and knowledge", "Frameworks", "Agents", "Customising models", "Production", "Interview round"].every(s => navText.includes(s)));
+check("study order starts with foundations (ML, LLM) before RAG", navText.indexOf("1. ML and Deep") >= 0 && navText.indexOf("2. LLM Fundamentals") > navText.indexOf("1. ML") && navText.indexOf("4. RAG") > navText.indexOf("3. Prompt"));
+check("modules numbered 1..13", /12\. /.test(navText));
+check("default view is hard+tricky, starting at step 1", /Step 1 of 13/.test($("study").textContent) && !/Core/.test($("study").querySelector("article span").textContent));
+const cards = [...$("study").querySelectorAll("article")];
+check("default view shows only experienced-level cards", cards.length >= 1 && cards.every(c => /2\+ yrs|Hard|Tricky/.test(c.textContent.slice(0, 500))));
+const rag = [...$("modules").querySelectorAll("button")].find(b => /RAG/.test(b.textContent)); rag.click();
+check("RAG experienced view has 26 questions (14 pro + 12 hard)", $("study").querySelectorAll("article").length === 26);
+const art = [...$("study").querySelectorAll("article")].find(a => /Hard|Tricky/.test(a.querySelector("span").textContent)); art.querySelector("button").click();
+check("hard card reveals trap + probe + answer + cross-questions", /The trap/.test(art.textContent) && /probing/i.test(art.textContent) && art.querySelectorAll("details").length >= 2);
+check("next/prev module navigation exists", /Frameworks|LangChain/.test($("study").textContent) || /LangChain/.test($("study").textContent));
+[...$("levels").querySelectorAll("button")].find(b => /Fundamentals/.test(b.textContent)).click();
+check("fundamentals filter shows the basic questions", $("study").querySelectorAll("article").length >= 1 && /Fundamentals/.test($("study").textContent));
+[...$("levels").querySelectorAll("button")].find(b => /Project/.test(b.textContent)).click();
+const rag2 = [...$("modules").querySelectorAll("button")].find(b => /RAG/.test(b.textContent)); rag2.click();
+check("project filter shows the end-to-end walkthrough in RAG", /end-to-end RAG application/.test($("study").textContent));
+[...$("levels").querySelectorAll("button")].find(b => /Everything/.test(b.textContent)).click();
+check("everything filter counts all questions", /104 questions in this view/.test($("progress").textContent) || /\d+ questions in this view/.test($("progress").textContent));
+$("search").value = "idempotency"; $("search").dispatchEvent(new w.Event("input"));
+check("search spans difficulties", /result/.test($("study").textContent) && $("study").querySelectorAll("article").length >= 2);
+$("search").value = ""; $("search").dispatchEvent(new w.Event("input"));
+[...$("levels").querySelectorAll("button")].find(b => /Experienced/.test(b.textContent)).click();
+$("btn-mock").click();
+check("mock draws hard questions", /Question 1 of/.test($("mock").textContent) && /2\+ yrs|Hard|Tricky/.test($("mock").textContent));
+[...$("mock").querySelectorAll("button")].find(b => /Reveal/.test(b.textContent)).click();
+check("mock shows what the interviewer probes", /Probing/.test($("mock").textContent));
+// ---- live coding renders code blocks ----
+[...$("levels").querySelectorAll("button")].find(b => /Live coding/.test(b.textContent)).click();
+[...$("modules").querySelectorAll("button")].find(b => /Live Coding/.test(b.textContent)).click();
+const ca = $("study").querySelector("article"); ca.querySelector("button").click();
+check("live coding module lists problems", $("study").querySelectorAll("article").length >= 10);
+check("code answers render in <pre><code>", ca.querySelectorAll("pre code").length >= 1 && /def chunk_text/.test(ca.textContent));
+console.log(pass + " passed, " + fail + " failed"); process.exit(fail ? 1 : 0);

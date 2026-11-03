@@ -3,193 +3,69 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CmdCraft // Interview Prep</title>
+  <title>CmdCraft // Linux Interview Prep</title>
+  <meta name="theme-color" content="#0a0a0a">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="../shared/theme.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&display=swap">
+  <style>.ans p{margin:.5rem 0}.ans ul{list-style:disc;margin:.4rem 0 .4rem 1.25rem}.ans li{margin:.15rem 0}.ans strong{color:#34d399}[data-theme=light] .ans strong{color:#047857}</style>
 </head>
 <body class="bg-surface-0 text-neutral-200 font-sans min-h-screen">
-  <header class="border-b border-neutral-800 bg-surface-1 px-4 py-3">
-    <div class="max-w-3xl mx-auto flex items-center justify-between">
-      <a href="../" class="font-extrabold text-xl text-emerald-400">CmdCraft</a>
-      <div class="flex items-center space-x-3 text-xs text-neutral-400">
-        <span class="hidden sm:inline text-neutral-500">Interview prep · <span id="total-count"></span> questions</span>
-        <a href="index.html" class="hover:text-neutral-200"><i class="fa-solid fa-arrow-left mr-1"></i>Back to practice</a>
+  <header class="border-b border-neutral-800 bg-surface-1 px-4 py-3 sticky top-0 z-20">
+    <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <a href="../" class="font-extrabold text-xl text-emerald-400">CmdCraft</a>
+        <span class="text-neutral-500 text-sm truncate"><i class="fa-brands fa-linux mr-1"></i>Linux interview prep</span>
+      </div>
+      <div class="flex items-center gap-2 text-xs">
+        <button id="btn-mock" class="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-semibold"><i class="fa-solid fa-user-tie mr-1"></i>Mock interview</button>
+        <a href="quiz.html" class="hidden sm:inline px-3 py-1.5 rounded-lg border border-neutral-700 text-neutral-300 hover:border-neutral-500">Quick-fire quiz</a>
+        <a href="index.html" class="hidden sm:inline text-neutral-400 hover:text-neutral-200"><i class="fa-solid fa-arrow-left mr-1"></i>Practice</a>
       </div>
     </div>
   </header>
 
-  <main class="max-w-3xl mx-auto px-4 py-6">
-    <!-- setup -->
-    <section id="setup" class="space-y-6">
+  <div class="max-w-6xl mx-auto px-4 py-5 grid md:grid-cols-[270px_1fr] gap-6">
+    <aside class="space-y-3 md:sticky md:top-20 md:self-start md:max-h-[calc(100vh-6rem)] md:overflow-y-auto pr-1">
+      <input id="search" type="search" placeholder="Search all questions…" class="w-full px-3 py-2 rounded-lg bg-surface-1 border border-neutral-700 text-sm focus:outline-none focus:border-emerald-400">
       <div>
-        <h1 class="text-lg font-bold text-neutral-100">Linux interview prep</h1>
-        <p class="text-sm text-neutral-400 mt-1">Short scenario and concept questions of the kind asked for DevOps, SRE and sysadmin roles. Every answer comes with the reasoning, and wrong answers feed a "weak spots" list.</p>
+        <div class="text-[10px] uppercase tracking-wide text-neutral-500 mb-1">Difficulty</div>
+        <div id="levels" class="flex flex-wrap gap-1"></div>
       </div>
-      <div id="stats" class="grid grid-cols-3 gap-3 text-center"></div>
-      <div>
-        <h2 class="text-xs uppercase tracking-wide text-neutral-500 mb-2">Topic</h2>
-        <div id="chips" class="flex flex-wrap gap-1.5"></div>
-      </div>
-      <div class="flex flex-wrap items-end gap-4">
-        <div>
-          <h2 class="text-xs uppercase tracking-wide text-neutral-500 mb-2">Round length</h2>
-          <div id="lens" class="flex gap-1.5"></div>
-        </div>
-        <button id="start" class="px-5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-sm">Start round</button>
-        <button id="weak" class="px-4 py-2 rounded-lg border border-neutral-700 text-neutral-300 hover:border-emerald-400 text-sm">Practise weak spots</button>
-      </div>
-      <div id="history"></div>
-    </section>
+      <div id="progress" class="text-xs text-neutral-400"></div>
+      <div class="text-[10px] uppercase tracking-wide text-neutral-500">Study order: top to bottom</div>
+      <nav id="modules" class="space-y-3"></nav>
+    </aside>
+    <main>
+      <div id="study"></div>
+      <div id="mock" class="hidden"></div>
+    </main>
+  </div>
 
-    <!-- quiz -->
-    <section id="quiz" class="hidden space-y-4">
-      <div class="flex items-center justify-between text-xs text-neutral-400">
-        <span id="q-pos"></span><span id="q-topic" class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700"></span>
-      </div>
-      <div class="h-1.5 rounded bg-neutral-800 overflow-hidden"><div id="bar" class="h-1.5 bg-emerald-400" style="width:0%"></div></div>
-      <h2 id="q-text" class="text-base sm:text-lg font-semibold text-neutral-100 leading-snug"></h2>
-      <div id="opts" class="space-y-2"></div>
-      <div id="why" class="hidden rounded-lg border px-4 py-3 text-sm"></div>
-      <div class="flex justify-between items-center">
-        <button id="quit" class="text-xs text-neutral-500 hover:text-neutral-300">End round</button>
-        <button id="next" class="hidden px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-sm">Next <span class="opacity-60 text-xs">(Enter)</span></button>
-      </div>
-    </section>
-
-    <!-- results -->
-    <section id="results" class="hidden space-y-5"></section>
-  </main>
-
-  <script src="content/interview-data.js"></script>
+  <script src="content/qa-linux.js"></script>
+  <script src="../shared/qa-viewer.js"></script>
   <script>
-  (function () {
-    const Q = window.INTERVIEW_QUESTIONS.map((r, i) => ({ id: hash(r[1]), mod: r[0], q: r[1], opts: r.slice(2, 6), why: r[6] }));
-    const KEY = "cmdcraft.interview.v1";
-    const $ = id => document.getElementById(id);
-    const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-    function hash(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); }
-    function load() { try { return JSON.parse(localStorage.getItem(KEY)) || { stats: {}, rounds: [] }; } catch (e) { return { stats: {}, rounds: [] }; } }
-    function save(d) { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) { /* private mode: progress just isn't kept */ } }
-    const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-
-    let data = load(), topic = "All", len = 10, round = null;
-    const topics = ["All", ...Array.from(new Set(Q.map(q => q.mod)))];
-    $("total-count").textContent = Q.length;
-
-    function stat(label, value, sub) { const d = el("div", "rounded-lg border border-neutral-800 bg-surface-1 px-3 py-3"); d.appendChild(el("div", "text-xl font-bold text-neutral-100", value)); d.appendChild(el("div", "text-[11px] text-neutral-500", label)); if (sub) d.appendChild(el("div", "text-[10px] text-neutral-600", sub)); return d; }
-    function drawSetup() {
-      const answered = Object.values(data.stats).reduce((s, x) => s + x.c + x.w, 0), right = Object.values(data.stats).reduce((s, x) => s + x.c, 0);
-      const seen = Object.keys(data.stats).filter(k => Q.some(q => q.id === k)).length;
-      $("stats").replaceChildren(stat("Answered", answered), stat("Accuracy", answered ? Math.round(100 * right / answered) + "%" : "–"), stat("Questions seen", seen + "/" + Q.length));
-      $("chips").replaceChildren(...topics.map(t => {
-        const n = t === "All" ? Q.length : Q.filter(q => q.mod === t).length;
-        const b = el("button", "px-2.5 py-1 rounded-full border text-xs " + (t === topic ? "bg-emerald-500 text-black border-emerald-400" : "border-neutral-700 text-neutral-300 hover:border-emerald-400"), t + " · " + n);
-        b.addEventListener("click", () => { topic = t; drawSetup(); }); return b;
-      }));
-      $("lens").replaceChildren(...[10, 20, 0].map(n => {
-        const b = el("button", "px-3 py-1 rounded-lg border text-xs " + (n === len ? "bg-emerald-500 text-black border-emerald-400" : "border-neutral-700 text-neutral-300 hover:border-emerald-400"), n ? String(n) : "All");
-        b.addEventListener("click", () => { len = n; drawSetup(); }); return b;
-      }));
-      const weak = weakList();
-      $("weak").disabled = !weak.length; $("weak").classList.toggle("opacity-40", !weak.length);
-      $("weak").textContent = "Practise weak spots" + (weak.length ? " (" + weak.length + ")" : "");
-      const h = $("history"); h.replaceChildren();
-      if (data.rounds.length) {
-        h.appendChild(el("h2", "text-xs uppercase tracking-wide text-neutral-500 mb-2", "Recent rounds"));
-        data.rounds.slice(-5).reverse().forEach(r => h.appendChild(el("div", "text-xs text-neutral-400 py-0.5", new Date(r.t).toLocaleDateString() + " · " + r.topic + " · " + r.score + "/" + r.total + " (" + Math.round(100 * r.score / r.total) + "%)")));
-      }
-    }
-    const weakList = () => Q.filter(q => { const s = data.stats[q.id]; return s && s.w > s.c; });
-
-    function begin(pool) {
-      pool = shuffle(pool); if (len) pool = pool.slice(0, len);
-      if (!pool.length) return;
-      round = { items: pool.map(q => Object.assign({}, q, { order: shuffle(q.opts.map((t, i) => i)) })), i: 0, score: 0, missed: [], answers: [] };
-      $("setup").classList.add("hidden"); $("results").classList.add("hidden"); $("quiz").classList.remove("hidden");
-      show();
-    }
-    let answered = false;
-    function show() {
-      const it = round.items[round.i]; answered = false;
-      $("q-pos").textContent = "Question " + (round.i + 1) + " of " + round.items.length;
-      $("q-topic").textContent = it.mod;
-      $("bar").style.width = Math.round(100 * round.i / round.items.length) + "%";
-      $("q-text").textContent = it.q;
-      $("why").classList.add("hidden"); $("next").classList.add("hidden");
-      $("opts").replaceChildren(...it.order.map((oi, pos) => {
-        const b = el("button", "w-full text-left px-4 py-3 rounded-lg border border-neutral-700 hover:border-emerald-400 text-sm flex gap-3 items-start");
-        b.appendChild(el("span", "shrink-0 w-5 h-5 rounded border border-neutral-600 text-[11px] flex items-center justify-center text-neutral-400", String(pos + 1)));
-        b.appendChild(el("span", "", it.opts[oi]));
-        b.dataset.correct = oi === 0 ? "1" : "";
-        b.addEventListener("click", () => choose(b, oi === 0));
-        return b;
-      }));
-    }
-    function choose(btn, right) {
-      if (answered) return; answered = true;
-      const it = round.items[round.i];
-      [...$("opts").children].forEach(b => {
-        b.disabled = true; b.classList.remove("hover:border-emerald-400");
-        if (b.dataset.correct) b.className = "w-full text-left px-4 py-3 rounded-lg border text-sm flex gap-3 items-start border-emerald-400 bg-emerald-500/10";
-      });
-      if (!right) btn.className = "w-full text-left px-4 py-3 rounded-lg border text-sm flex gap-3 items-start border-red-400 bg-red-500/10";
-      const s = data.stats[it.id] || (data.stats[it.id] = { c: 0, w: 0 }); if (right) s.c++; else s.w++;
-      if (right) round.score++; else round.missed.push(it);
-      save(data);
-      const why = $("why"); why.classList.remove("hidden");
-      why.className = "rounded-lg border px-4 py-3 text-sm " + (right ? "border-emerald-500/40 bg-emerald-500/5 text-neutral-200" : "border-red-500/40 bg-red-500/5 text-neutral-200");
-      why.replaceChildren(el("div", "font-semibold mb-1 " + (right ? "text-emerald-400" : "text-red-400"), right ? "Correct" : "Not quite"), el("div", "", (right ? "" : "Answer: " + it.opts[0] + ". ") + it.why));
-      $("next").classList.remove("hidden"); $("next").focus();
-    }
-    function next() {
-      if (!answered) return;
-      round.i++;
-      if (round.i >= round.items.length) finish(); else show();
-    }
-    function finish() {
-      data.rounds.push({ t: Date.now(), topic: topic, score: round.score, total: round.items.length }); data.rounds = data.rounds.slice(-30); save(data);
-      $("quiz").classList.add("hidden");
-      const r = $("results"); r.classList.remove("hidden"); r.replaceChildren();
-      const pct = Math.round(100 * round.score / round.items.length);
-      const head = el("div", "text-center py-4");
-      head.appendChild(el("div", "text-4xl font-extrabold " + (pct >= 80 ? "text-emerald-400" : pct >= 50 ? "text-amber-400" : "text-red-400"), round.score + " / " + round.items.length));
-      head.appendChild(el("div", "text-sm text-neutral-400 mt-1", pct + "% · " + (pct >= 80 ? "interview-ready on this set" : pct >= 50 ? "getting there: review the misses below" : "keep practising: the explanations are the point")));
-      r.appendChild(head);
-      const per = {}; round.items.forEach(it => { per[it.mod] = per[it.mod] || [0, 0]; per[it.mod][1]++; });
-      round.items.forEach(it => { if (!round.missed.includes(it)) per[it.mod][0]++; });
-      if (Object.keys(per).length > 1) {
-        const box = el("div", "rounded-lg border border-neutral-800 bg-surface-1 p-3 space-y-1.5");
-        Object.entries(per).sort((a, b) => a[1][0] / a[1][1] - b[1][0] / b[1][1]).forEach(([m, [c, t]]) => {
-          const row = el("div", "flex items-center gap-2 text-xs"); row.appendChild(el("span", "w-36 shrink-0 truncate text-neutral-400", m));
-          const tr = el("div", "flex-1 h-1.5 rounded bg-neutral-800"); const f = el("div", "h-1.5 rounded " + (c === t ? "bg-emerald-400" : "bg-amber-400")); f.style.width = (100 * c / t) + "%"; tr.appendChild(f); row.appendChild(tr);
-          row.appendChild(el("span", "w-10 text-right text-neutral-500", c + "/" + t)); box.appendChild(row);
-        });
-        r.appendChild(box);
-      }
-      if (round.missed.length) {
-        r.appendChild(el("h3", "text-sm font-semibold text-neutral-200 pt-2", "Review what you missed"));
-        round.missed.forEach(it => { const c = el("div", "rounded-lg border border-neutral-800 bg-surface-1 p-3 text-sm space-y-1"); c.appendChild(el("div", "text-neutral-100", it.q)); c.appendChild(el("div", "text-emerald-400", "✓ " + it.opts[0])); c.appendChild(el("div", "text-neutral-400 text-xs", it.why)); r.appendChild(c); });
-      }
-      const act = el("div", "flex flex-wrap gap-2 pt-2");
-      if (round.missed.length) { const b = el("button", "px-4 py-2 rounded-lg border border-neutral-700 text-sm hover:border-emerald-400", "Retry the " + round.missed.length + " missed"); b.addEventListener("click", () => { const l = len; len = 0; begin(round.missed); len = l; }); act.appendChild(b); }
-      const again = el("button", "px-4 py-2 rounded-lg bg-emerald-500 text-black font-semibold text-sm", "New round"); again.addEventListener("click", home); act.appendChild(again);
-      r.appendChild(act);
-    }
-    function home() { $("quiz").classList.add("hidden"); $("results").classList.add("hidden"); $("setup").classList.remove("hidden"); drawSetup(); }
-
-    $("start").addEventListener("click", () => begin(Q.filter(q => topic === "All" || q.mod === topic)));
-    $("weak").addEventListener("click", () => begin(weakList()));
-    $("next").addEventListener("click", next);
-    $("quit").addEventListener("click", () => { if (round && (round.i > 0 || answered)) { round.items = round.items.slice(0, answered ? round.i + 1 : round.i); finish(); } else home(); });
-    document.addEventListener("keydown", e => {
-      if ($("quiz").classList.contains("hidden")) return;
-      if (/^[1-4]$/.test(e.key) && !answered) { const b = $("opts").children[+e.key - 1]; if (b) b.click(); }
-      else if (e.key === "Enter" && answered) { e.preventDefault(); next(); }
+    QAViewer.init({
+      bank: window.LINUX_INTERVIEW,
+      key: "cmdcraft.linux.interview.v1", defaultLevel: "pro",
+      levelFor: () => "core",
+      sections: [
+        { name: "How the system works", note: "Boot, processes, memory, filesystems and storage.", mods: ["internals", "storage"] },
+        { name: "Running it", note: "Networking, services, logs and deployment.", mods: ["network", "operations"] },
+        { name: "Automation", note: "Shell scripting and text processing.", mods: ["scripting"] },
+        { name: "Security", note: "Hardening, sudo design and incident response.", mods: ["security"] },
+        { name: "Scenarios", note: "Open-ended incidents: explain your method.", mods: ["scenarios"] }
+      ],
+      levels: [
+        { id: "pro", label: "Experienced (2+ yrs)", test: lv => lv === "pro" || lv === "tricky" || lv === "hard" },
+        { id: "core", label: "Fundamentals", test: lv => lv === "core" },
+        { id: "all", label: "Everything", test: () => true }
+      ]
     });
-    drawSetup();
-  })();
   </script>
+  <script src="../shared/pwa.js"></script>
 </body>
 </html>

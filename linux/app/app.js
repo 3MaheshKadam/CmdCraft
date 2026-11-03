@@ -121,6 +121,17 @@ class CmdCraftApp {
     this.syllabusIndex = parseInt(localStorage.getItem("cmdcraft_syllabus_index") || "0", 10);
     if (isNaN(this.syllabusIndex)) this.syllabusIndex = 0;
 
+    // Spaced-repetition stats per drill: { id: { n attempts, f fails, b box 0-5, d due (ms), t last } }
+    try { this.stats = JSON.parse(localStorage.getItem("cmdcraft_stats") || "{}") || {}; } catch (e) { this.stats = {}; }
+    this.sessionFails = {};
+    this.reviewQueue = [];
+
+    // Deep links: ?topic=permissions opens that module, ?review=1 opens the review queue
+    const qp = new URLSearchParams(location.search);
+    const wantTopic = qp.get("topic");
+    if (wantTopic && LINUX_TOPICS.some(t => t.id === wantTopic)) { this.selectedTopic = wantTopic; this.currentMode = "topic"; delete this.topicIndices[wantTopic]; }
+    this.openReview = qp.get("review") === "1";
+
     this.scenarioList = [];
     this.currentIndex = 0;
     this.currentScenario = null;
@@ -148,6 +159,8 @@ class CmdCraftApp {
       // Modes & Navigation
       modeTopicBtn: document.getElementById("mode-topic"),
       modeSyllabusBtn: document.getElementById("mode-syllabus"),
+      modeReviewBtn: document.getElementById("mode-review"),
+      reviewCount: document.getElementById("review-count"),
       topicContainer: document.getElementById("topic-selector-container"),
       
       // Scenario Info
@@ -201,21 +214,53 @@ class CmdCraftApp {
     this.loadScenarioQueue();
     this.renderCurrentScenario();
     this.booted = true;
+    this.updateReviewCount();
+    if (this.openReview) this.switchMode("review");
     setTimeout(() => {
       if (this.dom.termInput) this.dom.termInput.focus();
     }, 150);
   }
 
   updateModeUI() {
-    if (this.currentMode === "topic") {
-      this.dom.modeTopicBtn.className = "px-4 py-1.5 text-xs font-semibold rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center space-x-2 transition";
-      this.dom.modeSyllabusBtn.className = "px-4 py-1.5 text-xs font-semibold rounded-md text-neutral-400 hover:text-neutral-200 flex items-center space-x-2 transition";
-      this.dom.topicContainer.classList.remove("opacity-30", "pointer-events-none");
+    const base = "px-4 py-1.5 text-xs font-semibold rounded-md flex items-center space-x-2 transition ";
+    const off = base + "text-neutral-400 hover:text-neutral-200";
+    const m = this.currentMode;
+    this.dom.modeTopicBtn.className = m === "topic" ? base + "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40" : off;
+    this.dom.modeSyllabusBtn.className = m === "syllabus" ? base + "bg-amber-500/20 text-amber-400 border border-amber-500/40" : off;
+    if (this.dom.modeReviewBtn) this.dom.modeReviewBtn.className = m === "review" ? base + "bg-violet-500/20 text-violet-300 border border-violet-500/40" : off;
+    if (m === "topic") this.dom.topicContainer.classList.remove("opacity-30", "pointer-events-none");
+    else this.dom.topicContainer.classList.add("opacity-30", "pointer-events-none");
+  }
+
+  // ---- spaced repetition (Leitner boxes: 0 now, 1 day, 3, 7, 14, 30) ----
+  recordResult(id, ok) {
+    const DAY = 864e5, steps = [0, 1, 3, 7, 14, 30], now = Date.now();
+    const s = this.stats[id] || (this.stats[id] = { n: 0, f: 0, b: 0, d: 0, t: 0 });
+    s.n++; s.t = now;
+    if (ok) {
+      const struggled = (this.sessionFails[id] || 0) > 0;          // solved only after wrong attempts: see it again tomorrow
+      s.b = struggled ? 1 : Math.min((s.b || 0) + 1, 5);
+      s.d = now + steps[s.b] * DAY;
     } else {
-      this.dom.modeSyllabusBtn.className = "px-4 py-1.5 text-xs font-semibold rounded-md bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center space-x-2 transition";
-      this.dom.modeTopicBtn.className = "px-4 py-1.5 text-xs font-semibold rounded-md text-neutral-400 hover:text-neutral-200 flex items-center space-x-2 transition";
-      this.dom.topicContainer.classList.add("opacity-30", "pointer-events-none");
+      s.f++; s.b = 0; s.d = now; this.sessionFails[id] = (this.sessionFails[id] || 0) + 1;
     }
+    try { localStorage.setItem("cmdcraft_stats", JSON.stringify(this.stats)); } catch (e) { /* storage blocked */ }
+    this.markChanged();
+    this.updateReviewCount();
+  }
+
+  buildReviewQueue() {
+    const now = Date.now(), all = [...SCENARIOS, ...SYLLABUS_INCIDENTS];
+    return all.filter(sc => { const st = this.stats[sc.id]; return st && st.d <= now; })
+      .sort((a, b) => (this.stats[a.id].b - this.stats[b.id].b) || (this.stats[a.id].d - this.stats[b.id].d))   // weakest, then most overdue
+      .slice(0, 15);
+  }
+
+  updateReviewCount() {
+    if (!this.dom.reviewCount) return;
+    const n = this.buildReviewQueue().length;
+    this.dom.reviewCount.textContent = String(n);
+    this.dom.reviewCount.classList.toggle("hidden", n === 0);
   }
 
   getRankTitle(xp) {
@@ -247,6 +292,7 @@ class CmdCraftApp {
     // Mode toggles
     this.dom.modeTopicBtn.addEventListener("click", () => this.switchMode("topic"));
     this.dom.modeSyllabusBtn.addEventListener("click", () => this.switchMode("syllabus"));
+    if (this.dom.modeReviewBtn) this.dom.modeReviewBtn.addEventListener("click", () => this.switchMode("review"));
 
     // Audio toggle
     this.dom.soundToggle.addEventListener("click", () => {
@@ -456,6 +502,10 @@ class CmdCraftApp {
   }
 
   switchMode(mode, targetIndex = null) {
+    if (mode === "review") {
+      this.reviewQueue = this.buildReviewQueue();
+      if (!this.reviewQueue.length) { alert("Nothing to review right now. Drills you solve come back here after a day, and any you get wrong come back straight away."); return; }
+    }
     this.currentMode = mode;
     this.updateModeUI();
     this.renderTopicPills();
@@ -467,6 +517,11 @@ class CmdCraftApp {
   }
 
   loadScenarioQueue(targetIndex = null) {
+    if (this.currentMode === "review") {
+      this.scenarioList = this.reviewQueue.length ? this.reviewQueue : SCENARIOS.slice(0, 1);
+      this.currentIndex = targetIndex !== null && targetIndex >= 0 && targetIndex < this.scenarioList.length ? targetIndex : 0;
+      return;
+    }
     if (this.currentMode === "topic") {
       this.scenarioList = SCENARIOS.filter(s => s.topic === this.selectedTopic);
       if (this.scenarioList.length === 0) {
@@ -499,6 +554,7 @@ class CmdCraftApp {
   renderCurrentScenario() {
     this.currentScenario = this.scenarioList[this.currentIndex];
     if (!this.currentScenario) return;
+    this.resultRecorded = false;   // one result per visit to a drill, even if it was solved in an earlier session
 
     // Save active session state so browser reloads resume right here!
     this.saveSessionState();
@@ -511,7 +567,7 @@ class CmdCraftApp {
     const topicObj = LINUX_TOPICS.find(t => t.id === this.currentScenario.topic);
     this.dom.topicBadge.textContent = this.currentMode === "topic" 
       ? `TOPIC: ${(topicObj ? topicObj.name : this.currentScenario.topic).toUpperCase()}`
-      : "MODE: FULL SYLLABUS INCIDENT";
+      : this.currentMode === "review" ? `REVIEW: ${(topicObj ? topicObj.name : this.currentScenario.topic).toUpperCase()}` : "MODE: FULL SYLLABUS INCIDENT";
     
     this.dom.topicBadge.className = this.currentMode === "topic"
       ? "px-2.5 py-1 rounded-md text-xs font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
@@ -657,6 +713,7 @@ class CmdCraftApp {
 
   saveSessionState() {
     try {
+      if (this.currentMode === "review") { this.markChanged(); return; }
       localStorage.setItem("cmdcraft_mode", this.currentMode);
       if (this.currentMode === "topic") {
         localStorage.setItem("cmdcraft_topic", this.selectedTopic);
@@ -854,6 +911,7 @@ class CmdCraftApp {
 
     if (isMatch) {
       this.sound.playSuccess();
+      if (!this.resultRecorded) { this.recordResult(this.currentScenario.id, true); this.resultRecorded = true; }
       this.isSolved = true;
 
       // Update streak and XP
@@ -892,6 +950,7 @@ class CmdCraftApp {
 
     } else {
       this.sound.playError();
+      if (!this.resultRecorded) this.recordResult(this.currentScenario.id, false);
       this.streak = 0; // Reset streak on incorrect answer
       this.updateStatsUI();
 
@@ -972,6 +1031,11 @@ class CmdCraftApp {
       this.currentIndex++;
       this.renderCurrentScenario();
     } else {
+      if (this.currentMode === "review") {
+        alert("Review round finished. Anything you missed will come back soon.");
+        this.switchMode("topic");
+        return;
+      }
       // Finished all scenarios in this topic -> Automatically advance to the next module in the syllabus!
       if (this.currentMode === "topic") {
         const currentTopicIdx = LINUX_TOPICS.findIndex(t => t.id === this.selectedTopic);

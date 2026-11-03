@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CmdCraft // Practice</title>
+  <meta name="theme-color" content="#0a0a0a">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="shared/theme.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -13,36 +16,74 @@
   <header class="border-b border-neutral-800 bg-surface-1 px-4 py-3">
     <div class="max-w-4xl mx-auto flex items-center justify-between">
       <span class="font-extrabold text-xl text-emerald-400">CmdCraft</span>
-      <a href="activity.html" class="text-xs text-neutral-400 hover:text-neutral-200"><i class="fa-solid fa-chart-line mr-1"></i>Activity</a>
+      <div class="flex items-center gap-4 text-xs text-neutral-400">
+        <a href="progress.html" class="hover:text-neutral-200"><i class="fa-solid fa-gauge mr-1"></i>My progress</a>
+        <a href="activity.html" class="hover:text-neutral-200"><i class="fa-solid fa-chart-line mr-1"></i>Activity</a>
+      </div>
     </div>
   </header>
   <main class="max-w-4xl mx-auto px-4 py-8 space-y-6">
     <div>
       <h1 class="text-xl font-bold text-neutral-100">Choose a subject</h1>
-      <p class="text-sm text-neutral-400 mt-1">Hands-on practice that checks what you actually did, not just what you typed.</p>
+      <p class="text-sm text-neutral-400 mt-1">Hands-on practice that checks what you actually did, plus theory and interview preparation.</p>
     </div>
     <div id="subjects" class="grid sm:grid-cols-2 gap-4"></div>
+    <p id="install-note" class="hidden text-xs text-neutral-500"></p>
   </main>
   <script>
     // Add a subject here when its folder exists (see README: "Adding a subject").
+    // actions: the things you can do in it. Subjects without actions are roadmap cards listing what is planned.
     const SUBJECTS = [
-      { name: "Linux", href: "linux/", icon: "fa-terminal", live: true, blurb: "29 modules from the shell to production incidents, Vim, Bash scripting and interview prep." },
-      { name: "SQL", icon: "fa-database", blurb: "Coming soon" },
-      { name: "Python", icon: "fa-brands fa-python", blurb: "Coming soon" },
-      { name: "React", icon: "fa-brands fa-react", blurb: "Coming soon" },
-      { name: "AI", icon: "fa-robot", blurb: "Coming soon" }
+      { name: "Linux", icon: "fa-terminal", tag: "Practice · Theory · Interview", blurb: "29 modules from the shell to production incidents, Vim, Bash scripting and interview prep.",
+        actions: [
+          { label: "Practice", href: "linux/", icon: "fa-terminal", primary: true },
+          { label: "Review", href: "linux/?review=1", icon: "fa-rotate" },
+          { label: "Theory", href: "linux/theory/", icon: "fa-book" },
+          { label: "Playbooks", href: "linux/theory/#playbooks", icon: "fa-life-ring" },
+          { label: "Command quiz", href: "linux/theory/#quiz", icon: "fa-circle-question" },
+          { label: "Interview Q&A", href: "linux/interview.html", icon: "fa-user-tie" }
+        ] },
+      { name: "SQL", icon: "fa-database", tag: "Practice", blurb: "A 38-day beginner-to-expert roadmap: lessons for every topic, 440+ problems on a real SQLite engine in your browser (MySQL syntax supported), three projects, interview Q&A and a concurrency and index lab.",
+        actions: [
+          { label: "Roadmap", href: "sql/", icon: "fa-map", primary: true },
+          { label: "Lessons", href: "sql/learn.html", icon: "fa-book" },
+          { label: "Practice", href: "sql/practice.html", icon: "fa-terminal" },
+          { label: "Interview Q&A", href: "sql/interview.html", icon: "fa-user-tie" },
+          { label: "Lab", href: "sql/lab.html", icon: "fa-flask" }
+        ] },
+      { name: "AI / GenAI", icon: "fa-brain", tag: "Interview Q&A", blurb: "Experienced-level questions with model answers, traps and cross-questions, plus live-coding problems: RAG, LangChain, LangGraph, agents, MCP, fine-tuning, LLMOps and system design.",
+        actions: [{ label: "Interview Q&A", href: "ai/", icon: "fa-user-tie", primary: true }] },
+      { name: "Python", icon: "fa-brands fa-python", tag: "Roadmap", blurb: "Planned coverage:", roadmap: ["Syntax, types, control flow", "Functions, scope, closures, decorators", "Lists, dicts, sets, comprehensions, generators", "OOP, dataclasses, typing", "Files, exceptions, context managers", "Modules, packaging, virtual environments", "Testing with pytest, debugging, logging", "Concurrency: threads, multiprocessing, asyncio", "NumPy and pandas essentials", "APIs with FastAPI, scripting and automation"] },
+      { name: "React", icon: "fa-brands fa-react", tag: "Roadmap", blurb: "Planned coverage:", roadmap: ["JSX, components, props", "State, events, forms", "Hooks: useEffect, useRef, useMemo, custom hooks", "Context and reducers", "Data fetching and caching", "Routing", "Performance and rendering", "Testing", "Next.js basics", "State libraries"] }
     ];
     const box = document.getElementById("subjects");
     SUBJECTS.forEach(s => {
-      const a = document.createElement(s.live ? "a" : "div");
-      if (s.live) a.href = s.href;
-      a.className = "rounded-xl border p-5 flex gap-4 items-start " + (s.live ? "border-emerald-500/40 bg-surface-1 hover:border-emerald-400 transition" : "border-neutral-800 opacity-60");
-      const i = document.createElement("i"); i.className = (/ /.test(s.icon) ? s.icon : "fa-solid " + s.icon) + " text-2xl text-emerald-400 mt-0.5"; a.appendChild(i);
-      const t = document.createElement("div");
-      const h = document.createElement("div"); h.className = "font-semibold text-neutral-100"; h.textContent = s.name; t.appendChild(h);
-      const p = document.createElement("div"); p.className = "text-sm text-neutral-400 mt-0.5"; p.textContent = s.blurb; t.appendChild(p);
-      a.appendChild(t); box.appendChild(a);
+      const live = !!(s.actions && s.actions.length);
+      const c = document.createElement("div");
+      c.className = "rounded-xl border p-5 flex gap-4 items-start " + (live ? "border-emerald-500/40 bg-surface-1" : "border-neutral-800 bg-surface-1/50");
+      const i = document.createElement("i"); i.className = (/ /.test(s.icon) ? s.icon : "fa-solid " + s.icon) + " text-2xl text-emerald-400 mt-0.5"; c.appendChild(i);
+      const t = document.createElement("div"); t.className = "min-w-0 flex-1";
+      const head = document.createElement("div"); head.className = "flex items-center gap-2 flex-wrap";
+      const h = document.createElement("span"); h.className = "font-semibold text-neutral-100"; h.textContent = s.name; head.appendChild(h);
+      const tag = document.createElement("span"); tag.className = "text-[10px] px-1.5 py-0.5 rounded border " + (live ? "border-emerald-500/40 text-emerald-300" : "border-neutral-700 text-neutral-400"); tag.textContent = s.tag; head.appendChild(tag);
+      t.appendChild(head);
+      const p = document.createElement("div"); p.className = "text-sm text-neutral-400 mt-1"; p.textContent = s.blurb; t.appendChild(p);
+      if (live) {
+        const row = document.createElement("div"); row.className = "flex flex-wrap gap-1.5 mt-3";
+        s.actions.forEach(a => {
+          const b = document.createElement("a"); b.href = a.href;
+          b.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs border transition " + (a.primary ? "bg-emerald-500 hover:bg-emerald-400 text-black border-emerald-400 font-semibold" : "border-neutral-700 text-neutral-300 hover:border-emerald-400 hover:text-white");
+          const ic = document.createElement("i"); ic.className = "fa-solid " + a.icon; b.appendChild(ic); b.appendChild(document.createTextNode(a.label)); row.appendChild(b);
+        });
+        t.appendChild(row);
+      }
+      if (s.roadmap && s.roadmap.length) {
+        const ul = document.createElement("ul"); ul.className = "mt-2 text-xs text-neutral-500 list-disc ml-4 space-y-0.5";
+        s.roadmap.forEach(r => { const li = document.createElement("li"); li.textContent = r; ul.appendChild(li); }); t.appendChild(ul);
+      }
+      c.appendChild(t); box.appendChild(c);
     });
   </script>
+  <script src="shared/pwa.js"></script>
 </body>
 </html>

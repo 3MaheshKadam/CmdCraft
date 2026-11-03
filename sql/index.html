@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CmdCraft // SQL Roadmap</title>
+  <meta name="theme-color" content="#0a0a0a">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="../shared/theme.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&display=swap">
+</head>
+<body class="bg-surface-0 text-neutral-200 font-sans min-h-screen">
+  <header class="border-b border-neutral-800 bg-surface-1 px-4 py-3 sticky top-0 z-20">
+    <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <a href="../" class="font-extrabold text-xl text-emerald-400">CmdCraft</a>
+        <span class="text-neutral-500 text-sm truncate"><i class="fa-solid fa-database mr-1"></i>SQL mastery roadmap</span>
+      </div>
+      <nav class="flex items-center gap-2 text-xs">
+        <a href="learn.html" class="px-3 py-1.5 rounded-lg border border-neutral-700 text-neutral-300 hover:border-emerald-400"><i class="fa-solid fa-book mr-1"></i>Learn</a>
+        <a href="practice.html" class="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-semibold"><i class="fa-solid fa-terminal mr-1"></i>Practice</a>
+        <a href="interview.html" class="hidden sm:inline px-3 py-1.5 rounded-lg border border-neutral-700 text-neutral-300 hover:border-emerald-400"><i class="fa-solid fa-user-tie mr-1"></i>Interview</a>
+        <a href="lab.html" class="hidden sm:inline px-3 py-1.5 rounded-lg border border-neutral-700 text-neutral-300 hover:border-emerald-400"><i class="fa-solid fa-flask mr-1"></i>Lab</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+    <section class="space-y-2">
+      <h1 class="text-2xl font-bold text-neutral-100">SQL Mastery Roadmap: Beginner to Expert</h1>
+      <p class="text-sm text-neutral-400 max-w-3xl">38 days in 7 levels: database fundamentals, basic and intermediate SQL, advanced SQL, database engineering, interview problem solving and three real projects. Each day has a lesson (concepts, internals, mistakes, interview questions, revision points) and hands-on problems that run in your browser.</p>
+      <div id="summary" class="flex flex-wrap gap-2 text-xs"></div>
+    </section>
+
+    <section id="honesty" class="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100 space-y-1">
+      <div class="font-semibold"><i class="fa-solid fa-circle-info mr-1"></i>What runs in the browser, and what does not</div>
+      <p>Queries run on <strong>SQLite</strong> (via WebAssembly) with a compatibility layer so common <strong>MySQL 8</strong> syntax works: CREATE DATABASE/USE, AUTO_INCREMENT, DESCRIBE, SHOW TABLES, TRUNCATE, CONCAT, IF, DATEDIFF, DATE_ADD, TIMESTAMPDIFF, DATE_FORMAT, ON DUPLICATE KEY UPDATE, INSERT IGNORE, MINUS, DELIMITER and more. Everything in Levels 2 to 4, views, triggers, transactions with savepoints, indexes with EXPLAIN, recursion and window functions is hands-on.</p>
+      <p><strong>Concept-only</strong> (no real server in a browser): stored procedures and user-defined functions, real multi-session isolation levels and locking, materialized views, MODIFY COLUMN, and hash/merge join internals. They are taught with MySQL code to read, multiple-choice questions, and a step-through simulator on the Lab page. For a full MySQL 8 setup, install it locally and replay the lesson examples.</p>
+    </section>
+
+    <div id="levels" class="space-y-8"></div>
+
+    <section class="space-y-3">
+      <h2 class="text-lg font-semibold text-neutral-100">Tools around the roadmap</h2>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+        <a href="interview.html" class="rounded-xl border border-neutral-800 bg-surface-1 p-4 hover:border-emerald-400"><div class="font-semibold text-neutral-100"><i class="fa-solid fa-user-tie text-emerald-400 mr-2"></i>Interview prep</div><p class="text-neutral-400 text-xs mt-1">44 theory and scenario questions with model answers, a study mode and a timed mock interview (Day 34).</p></a>
+        <a href="practice.html#mod=sql50" class="rounded-xl border border-neutral-800 bg-surface-1 p-4 hover:border-emerald-400"><div class="font-semibold text-neutral-100"><i class="fa-solid fa-list-check text-emerald-400 mr-2"></i>Interview set (50)</div><p class="text-neutral-400 text-xs mt-1">50 original problems in the style of the well-known SQL 50 lists. The official LeetCode plan must be done on leetcode.com.</p></a>
+        <a href="lab.html" class="rounded-xl border border-neutral-800 bg-surface-1 p-4 hover:border-emerald-400"><div class="font-semibold text-neutral-100"><i class="fa-solid fa-flask text-emerald-400 mr-2"></i>Concurrency and index lab</div><p class="text-neutral-400 text-xs mt-1">Step through two sessions to see dirty reads, lost updates and deadlocks; compare a scan with an index search on 20,000 rows.</p></a>
+        <a href="coverage.html" class="rounded-xl border border-neutral-800 bg-surface-1 p-4 hover:border-emerald-400"><div class="font-semibold text-neutral-100"><i class="fa-solid fa-clipboard-check text-emerald-400 mr-2"></i>Syllabus coverage</div><p class="text-neutral-400 text-xs mt-1">Every bullet of the roadmap, with the lesson and the hands-on or quiz items that cover it.</p></a>
+      </div>
+    </section>
+  </main>
+
+  <script src="content/syllabus.js"></script>
+  <script src="content/problems.js"></script>
+  <script src="content/datasets-extra.js"></script>
+  <script src="content/problems-2.js"></script>
+  <script src="content/problems-3.js"></script>
+  <script src="content/problems-4.js"></script>
+  <script src="content/problems-5.js"></script>
+  <script src="content/problems-6.js"></script>
+  <script src="content/problems-7.js"></script>
+  <script src="content/problems-8.js"></script>
+  <script src="content/problems-9.js"></script>
+  <script>
+  (function () {
+    const $ = id => document.getElementById(id);
+    const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+    const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) || d; } catch (e) { return d; } };
+    const sql = read("cmdcraft.sql.v1", { solved: {}, xp: 0 }), lessons = read("cmdcraft.sql.lessons.v1", { done: {} });
+    const P = window.SQL_PROBLEMS;
+    const DAY_MODS = {
+      0: ["theory"], 1: ["theory"], 2: ["theory"], 3: ["ddl"], 4: ["cons"], 5: ["dml", "dml2"], 6: ["select", "filter"], 7: ["ops"],
+      8: ["aggx"], 9: ["aggx"], 10: ["aggx"], 11: ["join", "joinx"], 12: ["joinx"], 13: ["sub", "subx"], 14: ["setop"], 15: ["case", "casex"],
+      16: ["window", "winx"], 17: ["cte"], 18: ["datex"], 19: ["strx"], 20: ["rep"], 21: ["view"], 22: ["theory"], 23: ["trig"], 24: ["tx"],
+      25: ["theory"], 26: ["idx"], 27: ["idx"], 28: ["design"], 29: ["design"], 30: ["idx"], 31: ["int1"], 32: ["int2"], 33: ["sql50"], 34: ["theory"],
+      35: ["pj1"], 36: ["pj2"], 37: ["pj3"]
+    };
+    const LAB = { 25: "isolation", 26: "index", 27: "index" };
+    const stat = mods => { const items = P.filter(p => mods.indexOf(p.mod) >= 0); return { n: items.length, done: items.filter(p => sql.solved[p.id]).length }; };
+
+    const totalDone = Object.keys(sql.solved).length, daysDone = Object.keys(lessons.done).length;
+    [["fa-circle-check", totalDone + "/" + P.length + " problems solved"], ["fa-book-open", daysDone + "/" + window.SQL_SYLLABUS.length + " lessons read"], ["fa-bolt", (sql.xp || 0) + " XP"]].forEach(([ic, t]) => {
+      const s = el("span", "px-2.5 py-1 rounded-full border border-neutral-700 text-neutral-300"); s.appendChild(el("i", "fa-solid " + ic + " text-emerald-400 mr-1.5")); s.appendChild(document.createTextNode(t)); $("summary").appendChild(s);
+    });
+
+    window.SQL_LEVELS.forEach(lv => {
+      const sec = el("section", "space-y-3"), head = el("div", "flex items-baseline gap-3");
+      head.appendChild(el("h2", "text-lg font-semibold text-neutral-100", lv.name)); head.appendChild(el("span", "text-xs text-emerald-400", lv.tag)); sec.appendChild(head);
+      const grid = el("div", "grid sm:grid-cols-2 lg:grid-cols-3 gap-3");
+      window.SQL_SYLLABUS.filter(d => d.level === lv.id).forEach(d => {
+        const quizOnly = (DAY_MODS[d.day] || []).length === 1 && DAY_MODS[d.day][0] === "theory", st = stat(DAY_MODS[d.day] || []), card = el("div", "rounded-xl border border-neutral-800 bg-surface-1 p-4 space-y-2 flex flex-col");
+        const top = el("div", "flex items-center justify-between text-xs text-neutral-500"); top.appendChild(el("span", "font-mono", "Day " + d.day));
+        if (lessons.done[d.day]) top.appendChild(el("span", "text-emerald-400", "lesson read")); card.appendChild(top);
+        card.appendChild(el("div", "font-semibold text-neutral-100 text-sm", d.title));
+        card.appendChild(el("div", "text-xs text-neutral-500", d.bullets.length + " topics" + (quizOnly ? " · theory quiz" : st.n ? " · " + st.done + "/" + st.n + " problems" : "")));
+        if (st.n && !quizOnly) { const bar = el("div", "h-1 rounded bg-neutral-800 overflow-hidden"), fill = el("div", "h-1 bg-emerald-500"); fill.style.width = Math.round(100 * st.done / st.n) + "%"; bar.appendChild(fill); card.appendChild(bar); }
+        const acts = el("div", "flex flex-wrap gap-2 text-xs mt-auto pt-1");
+        const a1 = el("a", "px-2.5 py-1 rounded border border-neutral-700 text-neutral-300 hover:border-emerald-400", "Lesson"); a1.href = "learn.html#day=" + d.day; acts.appendChild(a1);
+        const mods = DAY_MODS[d.day] || [];
+        if (st.n) { const a2 = el("a", "px-2.5 py-1 rounded bg-emerald-500 text-black font-semibold hover:bg-emerald-400", quizOnly ? "Quiz" : "Practice"); a2.href = "practice.html#mod=" + mods.filter(m => P.some(p => p.mod === m))[0]; acts.appendChild(a2); }
+        if (d.day === 34) { const a3 = el("a", "px-2.5 py-1 rounded border border-neutral-700 text-neutral-300 hover:border-emerald-400", "Mock interview"); a3.href = "interview.html"; acts.appendChild(a3); }
+        if (LAB[d.day]) { const a4 = el("a", "px-2.5 py-1 rounded border border-neutral-700 text-neutral-300 hover:border-emerald-400", "Lab"); a4.href = "lab.html#" + LAB[d.day]; acts.appendChild(a4); }
+        card.appendChild(acts); grid.appendChild(card);
+      });
+      sec.appendChild(grid); $("levels").appendChild(sec);
+    });
+  })();
+  </script>
+  <script src="../shared/pwa.js"></script>
+</body>
+</html>

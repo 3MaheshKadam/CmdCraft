@@ -1,5 +1,11 @@
 linux/docs
 linux/tools
+tools
+tests
+.github
+node_modules
+package.json
+package-lock.json
 END_GOAL.md
 README.md
 firestore.rules

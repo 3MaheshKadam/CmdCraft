@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CmdCraft // Linux Theory</title>
+  <meta name="theme-color" content="#0a0a0a">
+  <link rel="manifest" href="../../manifest.webmanifest">
+  <link rel="icon" href="../../icons/icon.svg" type="image/svg+xml">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="../../shared/theme.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&display=swap">
+  <style>
+    summary::-webkit-details-marker{display:none}
+    @media print { header, aside, .noprint { display: none !important; } body { background: #fff !important; color: #000 !important; } main { grid-column: 1 / -1; } details { break-inside: avoid; } }
+  </style>
+</head>
+<body class="bg-surface-0 text-neutral-200 font-sans min-h-screen">
+  <header class="border-b border-neutral-800 bg-surface-1 px-4 py-3 sticky top-0 z-20">
+    <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <a href="../../" class="font-extrabold text-xl text-emerald-400">CmdCraft</a>
+        <span class="text-neutral-500 text-sm truncate"><i class="fa-brands fa-linux mr-1"></i>Linux theory</span>
+      </div>
+      <div class="flex items-center gap-2 text-xs">
+        <a href="../" class="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-semibold"><i class="fa-solid fa-terminal mr-1"></i>Practice</a>
+        <button id="btn-print" class="px-3 py-1.5 rounded-lg border border-neutral-700 text-neutral-300 hover:border-neutral-500"><i class="fa-solid fa-print mr-1"></i><span class="hidden sm:inline">Print cheat sheet</span></button>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-6xl mx-auto px-4 py-5 grid md:grid-cols-[260px_1fr] gap-6">
+    <aside class="space-y-3 md:sticky md:top-20 md:self-start md:max-h-[calc(100vh-6rem)] md:overflow-y-auto pr-1">
+      <input id="search" type="search" placeholder="Search commands and options…" class="w-full px-3 py-2 rounded-lg bg-surface-1 border border-neutral-700 text-sm focus:outline-none focus:border-emerald-400">
+      <div>
+        <div class="text-[10px] uppercase tracking-wide text-neutral-500 mb-1">Impact of the command</div>
+        <div id="impacts" class="flex flex-wrap gap-1"></div>
+      </div>
+      <nav id="nav" class="space-y-1"></nav>
+    </aside>
+    <main id="main" class="min-w-0"></main>
+  </div>
+
+  <script src="../content/ref-1.js"></script>
+  <script src="../content/ref-2.js"></script>
+  <script src="../content/ref-3.js"></script>
+  <script src="../content/ref-4.js"></script>
+  <script src="../content/playbooks.js"></script>
+  <script>
+  (function () {
+    const REF = window.LINUX_REF || [], PB = window.LINUX_PLAYBOOKS || [];
+    const $ = id => document.getElementById(id);
+    const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+    const KEY = "cmdcraft.theory.v1";
+    const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || { weak: {} }; } catch (e) { return { weak: {} }; } };
+    const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* private mode */ } };
+    const state = load();
+
+    const IMPACT = {
+      safe: { label: "Read-only", cls: "border-emerald-500/40 text-emerald-300 bg-emerald-500/10", note: "Only reads or displays information." },
+      changes: { label: "Changes files", cls: "border-sky-500/40 text-sky-300 bg-sky-500/10", note: "Modifies your files or session state; usually reversible." },
+      system: { label: "Changes system", cls: "border-amber-500/40 text-amber-300 bg-amber-500/10", note: "Affects users, services, network or boot; usually needs root." },
+      danger: { label: "Can destroy data", cls: "border-red-500/40 text-red-300 bg-red-500/10", note: "Can delete data or lock you out; check before you press Enter." }
+    };
+    REF.forEach((m, i) => { m.num = i + 1; m.cmds.forEach(c => { c.mod = m; c.key = m.id + ":" + c.c; }); });
+    const CARDS = REF.flatMap(m => m.cmds);
+
+    let view = "mod:" + (REF[0] && REF[0].id), impact = "all", query = "";
+
+    function copy(text, btn) {
+      const done = () => { const o = btn.textContent; btn.textContent = "Copied"; setTimeout(() => { btn.textContent = o; }, 900); };
+      try { navigator.clipboard.writeText(text).then(done, done); } catch (e) { done(); }
+    }
+    function badge(i) { const m = IMPACT[i] || IMPACT.safe; return el("span", "shrink-0 text-[10px] px-1.5 py-0.5 rounded border " + m.cls, m.label); }
+
+    function card(c, openIt) {
+      const d = el("details", "rounded-xl border border-neutral-800 bg-surface-1 group");
+      d.id = "c-" + c.key.replace(/[^a-z0-9]/gi, "_"); if (openIt) d.open = true;
+      const s = el("summary", "cursor-pointer list-none px-4 py-3 flex items-start gap-3");
+      const left = el("div", "min-w-0 flex-1");
+      left.appendChild(el("div", "font-mono text-sm font-semibold text-emerald-300 break-words", c.c));
+      left.appendChild(el("div", "text-sm text-neutral-300 mt-0.5", c.d));
+      s.appendChild(left);
+      const right = el("div", "flex items-center gap-1.5 shrink-0");
+      if (c.r) right.appendChild(el("span", "text-[10px] px-1.5 py-0.5 rounded border border-neutral-600 text-neutral-400", "root"));
+      right.appendChild(badge(c.i)); s.appendChild(right); d.appendChild(s);
+      const body = el("div", "px-4 pb-4 space-y-3 border-t border-neutral-800 pt-3");
+      const im = IMPACT[c.i] || IMPACT.safe;
+      body.appendChild(el("div", "text-xs text-neutral-500", "Impact: " + im.note + (c.r ? " Usually needs sudo." : "")));
+      if (c.o && c.o.length) {
+        const t = el("div", "text-sm");
+        t.appendChild(el("div", "text-[11px] uppercase tracking-wide text-neutral-500 mb-1", "Options and forms"));
+        c.o.forEach(([k, v]) => { const r = el("div", "flex gap-3 py-0.5"); r.appendChild(el("code", "shrink-0 font-mono text-[12px] text-amber-300", k)); if (v) r.appendChild(el("span", "text-neutral-300", v)); t.appendChild(r); });
+        body.appendChild(t);
+      }
+      if (c.ex && c.ex.length) {
+        const t = el("div", "space-y-2");
+        t.appendChild(el("div", "text-[11px] uppercase tracking-wide text-neutral-500", "Example and what you will see"));
+        c.ex.forEach(([cmd, out]) => {
+          const box = el("div", "rounded-lg bg-black/60 border border-neutral-800 px-3 py-2");
+          const row = el("div", "flex items-start justify-between gap-2");
+          const code = el("code", "font-mono text-[12px] text-neutral-100 break-all", "$ " + cmd); row.appendChild(code);
+          const b = el("button", "noprint shrink-0 text-[10px] px-1.5 py-0.5 rounded border border-neutral-700 text-neutral-400 hover:text-white", "Copy"); b.addEventListener("click", () => copy(cmd, b)); row.appendChild(b);
+          box.appendChild(row); if (out) box.appendChild(el("div", "font-mono text-[11px] text-neutral-500 mt-1 whitespace-pre-wrap", out)); t.appendChild(box);
+        });
+        body.appendChild(t);
+      }
+      if (c.g) { const g = el("div", "text-xs rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-200 px-3 py-2"); g.innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-1"></i><strong>Watch out: </strong>'; g.appendChild(document.createTextNode(c.g)); body.appendChild(g); }
+      const foot = el("div", "noprint flex flex-wrap items-center gap-2");
+      if (c.rel && c.rel.length) { foot.appendChild(el("span", "text-[11px] text-neutral-500", "Related:")); c.rel.forEach(r => foot.appendChild(el("span", "text-[11px] font-mono px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300", r))); }
+      const p = el("a", "ml-auto text-xs text-emerald-300 hover:text-emerald-200", "Practice this →"); p.href = "../index.html?topic=" + encodeURIComponent(c.mod.topic); foot.appendChild(p);
+      body.appendChild(foot); d.appendChild(body);
+      return d;
+    }
+
+    function drawNav() {
+      const frag = document.createDocumentFragment();
+      REF.forEach(m => {
+        const b = el("button", "w-full text-left px-3 py-1.5 rounded-lg border text-sm " + (view === "mod:" + m.id && !query ? "border-emerald-400 bg-emerald-500/10 text-neutral-100" : "border-neutral-800 text-neutral-300 hover:border-neutral-600"));
+        b.appendChild(el("span", "text-neutral-500 mr-1", m.num + ".")); b.appendChild(document.createTextNode(m.name));
+        b.addEventListener("click", () => go("mod:" + m.id)); frag.appendChild(b);
+      });
+      const extra = el("div", "pt-2 mt-2 border-t border-neutral-800 space-y-1");
+      [["playbooks", "Troubleshooting playbooks", "fa-life-ring"], ["quiz", "Command quiz", "fa-circle-question"]].forEach(([id, label, icon]) => {
+        const b = el("button", "w-full text-left px-3 py-1.5 rounded-lg border text-sm " + (view === id && !query ? "border-emerald-400 bg-emerald-500/10 text-neutral-100" : "border-neutral-800 text-neutral-300 hover:border-neutral-600"));
+        b.innerHTML = '<i class="fa-solid ' + icon + ' mr-2 text-emerald-400"></i>' + label; b.addEventListener("click", () => go(id)); extra.appendChild(b);
+      });
+      frag.appendChild(extra); $("nav").replaceChildren(frag);
+      $("impacts").replaceChildren(...[["all", "All"], ...Object.entries(IMPACT).map(([k, v]) => [k, v.label])].map(([k, label]) => {
+        const b = el("button", "px-2 py-1 rounded-md border text-[11px] " + (impact === k ? "border-emerald-400 bg-emerald-500/15 text-emerald-300" : "border-neutral-700 text-neutral-400 hover:border-neutral-500"), label);
+        b.addEventListener("click", () => { impact = k; draw(); }); return b;
+      }));
+    }
+    function go(v) { view = v; query = ""; $("search").value = ""; draw(); window.scrollTo({ top: 0 }); }
+
+    function drawModule(m) {
+      const box = el("div", "space-y-4");
+      box.appendChild(el("div", "text-xs text-neutral-500", "Module " + m.num + " of " + REF.length));
+      box.appendChild(el("h1", "text-xl font-bold text-neutral-100", m.name));
+      box.appendChild(el("p", "text-sm text-neutral-400", m.summary));
+      if (m.k && m.k.length) {
+        const k = el("div", "rounded-xl border border-neutral-800 bg-surface-1 p-4 space-y-2");
+        k.appendChild(el("div", "text-[11px] uppercase tracking-wide text-emerald-400", "Key ideas"));
+        m.k.forEach(([h, t]) => { const r = el("div", "text-sm"); r.appendChild(el("strong", "text-neutral-100", h + ". ")); r.appendChild(el("span", "text-neutral-300", t)); k.appendChild(r); });
+        box.appendChild(k);
+      }
+      const list = m.cmds.filter(c => impact === "all" || c.i === impact);
+      box.appendChild(el("div", "text-[11px] uppercase tracking-wide text-emerald-400 pt-2", "Commands (" + list.length + ")"));
+      const wrap = el("div", "space-y-3"); list.forEach(c => wrap.appendChild(card(c))); box.appendChild(wrap);
+      const nav = el("div", "noprint flex justify-between pt-4 mt-4 border-t border-neutral-800");
+      const prev = REF[m.num - 2], next = REF[m.num];
+      [prev, next].forEach((mm, i) => { if (!mm) { nav.appendChild(el("span")); return; } const b = el("button", "text-sm text-emerald-300 hover:text-emerald-200", i === 0 ? "← " + mm.name : mm.name + " →"); b.addEventListener("click", () => go("mod:" + mm.id)); nav.appendChild(b); });
+      box.appendChild(nav); return box;
+    }
+    function drawSearch() {
+      const q = query;
+      const hits = CARDS.filter(c => (impact === "all" || c.i === impact) && (c.c + " " + c.d + " " + (c.g || "") + " " + (c.o || []).map(x => x.join(" ")).join(" ")).toLowerCase().includes(q));
+      const box = el("div", "space-y-3");
+      box.appendChild(el("h2", "text-sm text-neutral-400", hits.length + " command" + (hits.length === 1 ? "" : "s") + " match “" + q + "”"));
+      hits.slice(0, 60).forEach(c => { const h = card(c, hits.length <= 3); const tag = el("div", "text-[10px] text-neutral-500 -mt-1 mb-1 px-1", c.mod.num + ". " + c.mod.name); box.appendChild(tag); box.appendChild(h); });
+      return box;
+    }
+    function drawPlaybooks() {
+      const box = el("div", "space-y-4");
+      box.appendChild(el("h1", "text-xl font-bold text-neutral-100", "Troubleshooting playbooks"));
+      box.appendChild(el("p", "text-sm text-neutral-400", "What to run, in order, and what the output tells you. Pick the symptom."));
+      PB.forEach(p => {
+        const d = el("details", "rounded-xl border border-neutral-800 bg-surface-1");
+        const s = el("summary", "cursor-pointer list-none px-4 py-3");
+        s.appendChild(el("div", "font-semibold text-neutral-100", p.title)); s.appendChild(el("div", "text-sm text-neutral-400 mt-0.5", p.symptom)); d.appendChild(s);
+        const body = el("div", "px-4 pb-4 pt-3 border-t border-neutral-800 space-y-3");
+        const ol = el("ol", "space-y-2");
+        p.steps.forEach((st, i) => {
+          const li = el("li", "flex gap-3"); li.appendChild(el("span", "shrink-0 w-6 h-6 rounded-full bg-emerald-500/15 text-emerald-300 text-xs flex items-center justify-center mt-0.5", String(i + 1)));
+          const c = el("div", "min-w-0"); c.appendChild(el("div", "text-sm text-neutral-200", st.do));
+          const row = el("div", "flex items-start gap-2 mt-1"); row.appendChild(el("code", "font-mono text-[12px] text-amber-300 break-all", "$ " + st.cmd));
+          const b = el("button", "noprint shrink-0 text-[10px] px-1.5 py-0.5 rounded border border-neutral-700 text-neutral-400", "Copy"); b.addEventListener("click", () => copy(st.cmd, b)); row.appendChild(b); c.appendChild(row);
+          c.appendChild(el("div", "text-xs text-neutral-500 mt-0.5", "Look for: " + st.see)); li.appendChild(c); ol.appendChild(li);
+        });
+        body.appendChild(ol);
+        if (p.fix && p.fix.length) { const f = el("div", "rounded-md bg-emerald-500/10 border border-emerald-500/30 px-3 py-2 text-sm text-emerald-100"); f.appendChild(el("div", "font-semibold text-xs uppercase tracking-wide mb-1", "Typical fixes")); const ul = el("ul", "list-disc ml-5 space-y-0.5"); p.fix.forEach(x => ul.appendChild(el("li", "", x))); f.appendChild(ul); body.appendChild(f); }
+        if (p.pitfalls && p.pitfalls.length) { const f = el("div", "rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-sm text-amber-100"); f.appendChild(el("div", "font-semibold text-xs uppercase tracking-wide mb-1", "Pitfalls")); const ul = el("ul", "list-disc ml-5 space-y-0.5"); p.pitfalls.forEach(x => ul.appendChild(el("li", "", x))); f.appendChild(ul); body.appendChild(f); }
+        d.appendChild(body); box.appendChild(d);
+      });
+      return box;
+    }
+
+    // ---------- command quiz built from the cards ----------
+    const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    const pick = (arr, n, not) => shuffle(arr.filter(x => x !== not)).slice(0, n);
+    function makeQuestion(c) {
+      const same = CARDS.filter(x => x.mod === c.mod && x !== c), other = same.length >= 3 ? same : CARDS.filter(x => x !== c);
+      const kinds = ["describe", "which", "impact"];
+      if ((c.o || []).filter(o => o[1]).length) kinds.push("option", "option");
+      const kind = kinds[Math.floor(Math.random() * kinds.length)];
+      if (kind === "describe") return { c, q: "What is `" + c.c + "` used for?", right: c.d, opts: shuffle([c.d, ...pick(other, 3).map(x => x.d)]) };
+      if (kind === "which") return { c, q: "Which command does this? " + c.d, right: c.c, opts: shuffle([c.c, ...pick(other, 3).map(x => x.c)]) };
+      if (kind === "impact") { const keys = Object.keys(IMPACT); return { c, q: "What is the impact of running `" + c.c + "`?", right: IMPACT[c.i].label, opts: shuffle(keys.map(k => IMPACT[k].label)), why: IMPACT[c.i].note }; }
+      const withMeaning = c.o.filter(o => o[1]); const [opt, meaning] = withMeaning[Math.floor(Math.random() * withMeaning.length)];
+      const pool = CARDS.flatMap(x => x.o || []).filter(o => o[1] && o[1] !== meaning).map(o => o[1]);
+      return { c, q: "With `" + c.c + "`, what does `" + opt + "` do?", right: meaning, opts: shuffle([meaning, ...pick([...new Set(pool)], 3)]) };
+    }
+    let quiz = null;
+    function startQuiz(onlyWeak, modId) {
+      let pool = CARDS.filter(c => !modId || c.mod.id === modId);
+      if (onlyWeak) { const w = pool.filter(c => state.weak[c.key]); if (w.length) pool = w; }
+      quiz = { qs: shuffle(pool).slice(0, 10).map(makeQuestion), i: 0, score: 0, missed: [] }; draw();
+    }
+    function drawQuiz() {
+      const box = el("div", "space-y-4 max-w-2xl");
+      if (!quiz) {
+        box.appendChild(el("h1", "text-xl font-bold text-neutral-100", "Command quiz"));
+        box.appendChild(el("p", "text-sm text-neutral-400", "Ten questions built from the reference cards: what a command does, which command fits, what an option means, and how risky it is. Wrong answers are remembered for the weak-spots round."));
+        const weakN = Object.keys(state.weak).length;
+        const row = el("div", "flex flex-wrap gap-2");
+        const all = el("button", "px-4 py-2 rounded-lg bg-emerald-500 text-black font-semibold text-sm", "Start (all modules)"); all.addEventListener("click", () => startQuiz(false)); row.appendChild(all);
+        const mod = el("button", "px-4 py-2 rounded-lg border border-neutral-700 text-sm hover:border-emerald-400", "Current module only"); mod.addEventListener("click", () => startQuiz(false, (REF.find(m => "mod:" + m.id === lastMod) || REF[0]).id)); row.appendChild(mod);
+        const weak = el("button", "px-4 py-2 rounded-lg border border-neutral-700 text-sm hover:border-amber-400 " + (weakN ? "" : "opacity-40"), "Weak spots (" + weakN + ")"); weak.disabled = !weakN; weak.addEventListener("click", () => startQuiz(true)); row.appendChild(weak);
+        box.appendChild(row); return box;
+      }
+      if (quiz.i >= quiz.qs.length) {
+        box.appendChild(el("h1", "text-3xl font-extrabold " + (quiz.score >= 8 ? "text-emerald-400" : quiz.score >= 5 ? "text-amber-400" : "text-red-400"), quiz.score + " / " + quiz.qs.length));
+        if (quiz.missed.length) { box.appendChild(el("h2", "text-sm font-semibold text-neutral-200", "Review")); quiz.missed.forEach(q => { const d = el("div", "rounded-lg border border-neutral-800 bg-surface-1 p-3 text-sm space-y-1"); d.appendChild(el("div", "text-neutral-100", q.q)); d.appendChild(el("div", "text-emerald-400", "✓ " + q.right)); if (q.c.g) d.appendChild(el("div", "text-xs text-amber-300", q.c.g)); box.appendChild(d); }); }
+        const again = el("button", "px-4 py-2 rounded-lg bg-emerald-500 text-black font-semibold text-sm", "New quiz"); again.addEventListener("click", () => { quiz = null; draw(); }); box.appendChild(again); return box;
+      }
+      const q = quiz.qs[quiz.i]; let answered = false;
+      box.appendChild(el("div", "text-xs text-neutral-500", "Question " + (quiz.i + 1) + " of " + quiz.qs.length + " · " + q.c.mod.name));
+      const h = el("h2", "text-lg font-semibold text-neutral-100 leading-snug"); q.q.split("`").forEach((part, i) => { h.appendChild(i % 2 ? el("code", "font-mono text-emerald-300", part) : document.createTextNode(part)); }); box.appendChild(h);
+      const opts = el("div", "space-y-2"), why = el("div", "hidden rounded-lg border px-3 py-2 text-sm"), next = el("button", "hidden px-4 py-2 rounded-lg bg-emerald-500 text-black font-semibold text-sm", "Next");
+      q.opts.forEach((o, i) => {
+        const b = el("button", "w-full text-left px-4 py-3 rounded-lg border border-neutral-700 hover:border-emerald-400 text-sm flex gap-3"); b.appendChild(el("span", "shrink-0 w-5 h-5 rounded border border-neutral-600 text-[11px] flex items-center justify-center text-neutral-400", String(i + 1))); b.appendChild(el("span", "", o));
+        b.addEventListener("click", () => {
+          if (answered) return; answered = true; const right = o === q.right;
+          [...opts.children].forEach(x => { x.disabled = true; if (x.textContent.slice(1) === q.right) x.className = "w-full text-left px-4 py-3 rounded-lg border text-sm flex gap-3 border-emerald-400 bg-emerald-500/10"; });
+          if (!right) { b.className = "w-full text-left px-4 py-3 rounded-lg border text-sm flex gap-3 border-red-400 bg-red-500/10"; quiz.missed.push(q); state.weak[q.c.key] = (state.weak[q.c.key] || 0) + 1; } else { quiz.score++; if (state.weak[q.c.key]) { state.weak[q.c.key]--; if (state.weak[q.c.key] <= 0) delete state.weak[q.c.key]; } }
+          save(); why.className = "rounded-lg border px-3 py-2 text-sm " + (right ? "border-emerald-500/40 bg-emerald-500/5" : "border-red-500/40 bg-red-500/5");
+          why.textContent = (right ? "Correct. " : "Answer: " + q.right + ". ") + (q.why || q.c.g || ""); next.classList.remove("hidden");
+        }); opts.appendChild(b);
+      });
+      next.addEventListener("click", () => { quiz.i++; draw(); });
+      box.appendChild(opts); box.appendChild(why); box.appendChild(next); return box;
+    }
+
+    let lastMod = view;
+    function draw() {
+      if (view.startsWith("mod:")) lastMod = view;
+      drawNav();
+      const main = $("main"); main.replaceChildren();
+      if (query) { main.appendChild(drawSearch()); return; }
+      if (view === "playbooks") main.appendChild(drawPlaybooks());
+      else if (view === "quiz") main.appendChild(drawQuiz());
+      else { const m = REF.find(x => "mod:" + x.id === view) || REF[0]; main.appendChild(drawModule(m)); }
+    }
+
+    $("search").addEventListener("input", e => { query = e.target.value.trim().toLowerCase(); draw(); });
+    $("btn-print").addEventListener("click", () => window.print());
+    window.addEventListener("beforeprint", () => document.querySelectorAll("details").forEach(d => { d.dataset.was = d.open ? "1" : ""; d.open = true; }));
+    window.addEventListener("afterprint", () => document.querySelectorAll("details").forEach(d => { d.open = !!d.dataset.was; }));
+    const hashMod = (location.hash || "").replace("#", ""); if (hashMod && REF.some(m => m.id === hashMod)) view = "mod:" + hashMod; else if (hashMod === "playbooks" || hashMod === "quiz") view = hashMod;
+    draw();
+  })();
+  </script>
+  <script src="../../shared/pwa.js"></script>
+</body>
+</html>

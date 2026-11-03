@@ -8,7 +8,7 @@
   const fb = cfg.firebase || {};
   const KEYS = [
     "cmdcraft_mode", "cmdcraft_topic", "cmdcraft_topic_indices", "cmdcraft_syllabus_index",
-    "cmdcraft_xp", "cmdcraft_streak", "cmdcraft_completed", "cmdcraft_last_scenario_id"
+    "cmdcraft_xp", "cmdcraft_streak", "cmdcraft_completed", "cmdcraft_last_scenario_id", "cmdcraft_stats"
   ];
   const STAMP = "cmdcraft_updated";
   const FIREBASE_VERSION = "10.12.2";

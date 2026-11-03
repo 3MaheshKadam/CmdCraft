@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CmdCraft // SQL Practice</title>
+  <meta name="theme-color" content="#0a0a0a">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="../shared/theme.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&display=swap">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+</head>
+<body class="bg-surface-0 text-neutral-200 font-sans min-h-screen">
+  <header class="border-b border-neutral-800 bg-surface-1 px-4 py-3 sticky top-0 z-20">
+    <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <a href="../" class="font-extrabold text-xl text-emerald-400">CmdCraft</a>
+        <a href="./" class="text-neutral-500 text-sm truncate hover:text-neutral-300"><i class="fa-solid fa-database mr-1"></i>SQL</a><span class="text-neutral-600">/</span><span class="text-neutral-300 text-sm">Practice</span>
+      </div>
+      <div class="flex items-center gap-3 text-xs text-neutral-400">
+        <span id="stats"></span>
+        <button id="btn-reset" class="hover:text-neutral-200" title="Clear progress"><i class="fa-solid fa-rotate-left"></i></button>
+        <a href="learn.html" class="hidden sm:inline hover:text-neutral-200"><i class="fa-solid fa-book mr-1"></i>Learn</a><a href="./" class="hover:text-neutral-200"><i class="fa-solid fa-map mr-1"></i>Roadmap</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-6xl mx-auto px-4 py-5 grid lg:grid-cols-[250px_1fr] gap-6">
+    <aside class="space-y-3 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto pr-1">
+      <nav id="nav" class="space-y-3"></nav>
+    </aside>
+
+    <main class="min-w-0 space-y-4">
+      <div id="loading" class="text-sm text-neutral-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading the SQLite engine…</div>
+      <div id="problem" class="hidden space-y-4">
+        <div class="flex flex-wrap items-center gap-2 text-xs">
+          <span id="p-id" class="px-2 py-0.5 rounded border border-neutral-700 text-neutral-400 font-mono"></span>
+          <span id="p-level" class="px-2 py-0.5 rounded border"></span>
+          <span id="p-ds" class="px-2 py-0.5 rounded border border-sky-500/40 text-sky-300 bg-sky-500/10"></span>
+          <span id="p-done" class="hidden px-2 py-0.5 rounded border border-emerald-500/40 text-emerald-300 bg-emerald-500/10"><i class="fa-solid fa-check mr-1"></i>Solved</span>
+        </div>
+        <h1 id="p-title" class="text-xl font-bold text-neutral-100"></h1>
+        <p id="p-task" class="text-sm text-neutral-300 leading-relaxed"></p>
+
+        <div id="mcq" class="hidden space-y-2"></div>
+        <details id="schema-box" class="rounded-xl border border-neutral-800 bg-surface-1">
+          <summary class="cursor-pointer list-none px-4 py-2.5 text-sm text-neutral-200"><i class="fa-solid fa-table mr-2 text-emerald-400"></i>Tables <span class="text-neutral-500">(click to see columns and sample rows)</span></summary>
+          <div id="schema" class="px-4 pb-4 pt-1 space-y-3 overflow-x-auto"></div>
+        </details>
+
+        <div id="editor-box">
+          <textarea id="editor" spellcheck="false" rows="8" class="w-full px-3 py-2 rounded-xl bg-black/60 border border-neutral-700 font-mono text-[13px] leading-5 text-neutral-100 focus:outline-none focus:border-emerald-400" placeholder="Write your SQL here. Ctrl+Enter runs it."></textarea>
+          <div class="flex flex-wrap items-center gap-2 mt-2">
+            <button id="btn-run" class="px-3 py-1.5 rounded-lg border border-neutral-600 text-sm hover:border-emerald-400"><i class="fa-solid fa-play mr-1"></i>Run</button>
+            <button id="btn-check" class="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-sm"><i class="fa-solid fa-circle-check mr-1"></i>Check answer</button>
+            <button id="btn-hint" class="px-3 py-1.5 rounded-lg border border-neutral-700 text-sm text-neutral-300 hover:border-amber-400"><i class="fa-regular fa-lightbulb mr-1"></i>Hint</button>
+            <button id="btn-solution" class="px-3 py-1.5 rounded-lg border border-neutral-700 text-sm text-neutral-300 hover:border-red-400">Show solution</button>
+            <button id="btn-next" class="hidden ml-auto px-4 py-1.5 rounded-lg bg-emerald-500 text-black font-semibold text-sm">Next problem →</button>
+          </div>
+        </div>
+
+        <div id="hint" class="hidden rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100"></div>
+        <div id="solution" class="hidden rounded-lg border border-neutral-700 bg-black/50 px-3 py-2"><div class="text-[11px] uppercase tracking-wide text-neutral-500 mb-1">Reference solution</div><pre id="solution-sql" class="font-mono text-[12px] text-neutral-200 whitespace-pre-wrap"></pre></div>
+        <div id="feedback" class="hidden rounded-lg border px-3 py-2 text-sm"></div>
+        <div id="explain" class="hidden rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-sm text-sky-100"></div>
+        <div id="result" class="overflow-x-auto"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="content/problems.js"></script>
+  <script src="content/datasets-extra.js"></script>
+  <script src="content/problems-2.js"></script>
+  <script src="content/problems-3.js"></script>
+  <script src="content/problems-4.js"></script>
+  <script src="content/problems-5.js"></script>
+  <script src="content/problems-6.js"></script>
+  <script src="content/problems-7.js"></script>
+  <script src="content/problems-8.js"></script>
+  <script src="content/problems-9.js"></script>
+  <script src="app/compat.js"></script>
+  <script src="app/judge.js"></script>
+  <script>
+  (function () {
+    const $ = id => document.getElementById(id);
+    const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+    const KEY = "cmdcraft.sql.v1";
+    const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || { solved: {}, attempts: {}, xp: 0 }; } catch (e) { return { solved: {}, attempts: {}, xp: 0 }; } };
+    const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* private mode */ } };
+    let state = load();
+    const MODS = window.SQL_MODULES, modIdx = id => MODS.findIndex(m => m.id === id);
+    const P = window.SQL_PROBLEMS.map((p, i) => [p, i]).sort((a, b) => modIdx(a[0].mod) - modIdx(b[0].mod) || a[1] - b[1]).map(x => x[0]);
+    const XP = { Beginner: 20, Intermediate: 40, Advanced: 70 };
+    const LV = { Beginner: "border-emerald-500/40 text-emerald-300 bg-emerald-500/10", Intermediate: "border-amber-500/40 text-amber-300 bg-amber-500/10", Advanced: "border-red-500/40 text-red-300 bg-red-500/10" };
+    const hash = new URLSearchParams(location.hash.slice(1));
+    let cur = (hash.get("id") && P.find(p => p.id === hash.get("id"))) || (hash.get("mod") && P.find(p => p.mod === hash.get("mod") && !state.solved[p.id])) || (hash.get("mod") && P.find(p => p.mod === hash.get("mod"))) || P.find(p => !state.solved[p.id]) || P[0], ready = false;
+
+    function drawStats() { const n = Object.keys(state.solved).length; $("stats").textContent = n + "/" + P.length + " solved · " + state.xp + " XP"; }
+    function drawNav() {
+      const frag = document.createDocumentFragment();
+      MODS.forEach(m => {
+        const items = P.filter(p => p.mod === m.id); if (!items.length) return;
+        const g = el("details", "space-y-1"); if (cur.mod === m.id) g.open = true;
+        g.appendChild(el("summary", "cursor-pointer list-none text-[10px] uppercase tracking-wide text-emerald-400 px-1 py-1", m.name + " · " + items.filter(p => state.solved[p.id]).length + "/" + items.length));
+        items.forEach(p => {
+          const b = el("button", "w-full text-left px-3 py-1.5 rounded-lg border text-sm flex items-center gap-2 " + (p.id === cur.id ? "border-emerald-400 bg-emerald-500/10 text-neutral-100" : "border-neutral-800 text-neutral-300 hover:border-neutral-600"));
+          b.appendChild(el("i", "fa-solid " + (state.solved[p.id] ? "fa-circle-check text-emerald-400" : "fa-circle text-neutral-700") + " text-[10px]"));
+          b.appendChild(el("span", "truncate", p.title)); b.addEventListener("click", () => open(p)); g.appendChild(b);
+        });
+        frag.appendChild(g);
+      });
+      $("nav").replaceChildren(frag);
+    }
+    function drawSchema(ds) {
+      const box = $("schema"); box.replaceChildren();
+      if (!ready) return;
+      window.SQLJudge.schema(ds).forEach(t => {
+        const w = el("div", "space-y-1");
+        w.appendChild(el("div", "font-mono text-sm text-emerald-300", t.table + "  (" + t.count + " rows)"));
+        const tbl = el("table", "text-[11px] font-mono border-collapse");
+        const head = el("tr"); t.cols.forEach(c => { const th = el("th", "text-left px-2 py-0.5 border border-neutral-800 text-amber-300", c.name); th.title = c.type + (c.pk ? " primary key" : "") + (c.notnull ? " not null" : ""); head.appendChild(th); }); tbl.appendChild(head);
+        const types = el("tr"); t.cols.forEach(c => types.appendChild(el("td", "px-2 py-0.5 border border-neutral-800 text-neutral-500", c.type + (c.pk ? " PK" : "")))); tbl.appendChild(types);
+        t.sample.forEach(r => { const tr = el("tr"); r.forEach(v => tr.appendChild(el("td", "px-2 py-0.5 border border-neutral-800 text-neutral-300", v === null ? "NULL" : String(v)))); tbl.appendChild(tr); });
+        w.appendChild(tbl); box.appendChild(w);
+      });
+    }
+    function showTable(t, maxRows) {
+      const wrap = el("div", "space-y-1");
+      if (!t.cols.length) { wrap.appendChild(el("div", "text-sm text-neutral-500", "Statement executed (no rows returned).")); return wrap; }
+      const tbl = el("table", "text-[12px] font-mono border-collapse");
+      const head = el("tr"); t.cols.forEach(c => head.appendChild(el("th", "text-left px-2 py-1 border border-neutral-700 bg-neutral-800/60 text-amber-300", c))); tbl.appendChild(head);
+      t.rows.slice(0, maxRows || 100).forEach(r => { const tr = el("tr"); r.forEach(v => tr.appendChild(el("td", "px-2 py-1 border border-neutral-800 " + (v === null ? "text-neutral-500 italic" : "text-neutral-200"), v === null ? "NULL" : String(v)))); tbl.appendChild(tr); });
+      wrap.appendChild(tbl); wrap.appendChild(el("div", "text-[11px] text-neutral-500", t.rows.length + " row" + (t.rows.length === 1 ? "" : "s") + (t.rows.length > (maxRows || 100) ? " (first " + (maxRows || 100) + " shown)" : "")));
+      return wrap;
+    }
+    function open(p) {
+      cur = p; $("p-id").textContent = p.id; $("p-level").textContent = p.level; $("p-level").className = "px-2 py-0.5 rounded border " + LV[p.level];
+      $("p-ds").textContent = p.ds ? "Dataset: " + window.SQL_DATASETS[p.ds].name : "Theory question"; $("p-title").textContent = p.title; $("p-task").textContent = p.task;
+      $("p-done").classList.toggle("hidden", !state.solved[p.id]);
+      ["hint", "solution", "feedback", "explain"].forEach(i => $(i).classList.add("hidden")); $("result").replaceChildren(); $("btn-next").classList.add("hidden");
+      const mcq = p.kind === "mcq";
+      $("editor-box").classList.toggle("hidden", mcq); $("schema-box").classList.toggle("hidden", mcq); $("mcq").classList.toggle("hidden", !mcq); $("mcq").replaceChildren();
+      if (mcq) drawMcq(p); else { $("editor").value = ""; drawSchema(p.ds); $("editor").focus(); }
+      try { history.replaceState(null, "", "#id=" + p.id); } catch (e) { /* file:// */ }
+      drawNav();
+    }
+    function drawMcq(p) {
+      const box = $("mcq"); let answered = false;
+      p.options.forEach((o, i) => {
+        const b = el("button", "w-full text-left px-3 py-2 rounded-lg border border-neutral-700 text-sm text-neutral-200 hover:border-emerald-400");
+        b.appendChild(el("span", "font-mono text-neutral-500 mr-2", String.fromCharCode(65 + i) + "."));
+        b.appendChild(document.createTextNode(o));
+        b.addEventListener("click", () => {
+          if (answered && state.solved[p.id]) return;
+          state.attempts[p.id] = (state.attempts[p.id] || 0) + 1;
+          const r = window.SQLJudge.judge(p, i); answered = true;
+          if (r.ok) {
+            b.className = "w-full text-left px-3 py-2 rounded-lg border border-emerald-500 bg-emerald-500/10 text-sm text-emerald-100";
+            if (!state.solved[p.id]) { state.solved[p.id] = Date.now(); state.xp += XP[p.level] || 10; }
+            feedback(true, "Correct!"); $("explain").classList.remove("hidden"); $("explain").textContent = p.explain; $("p-done").classList.remove("hidden");
+            const k = P.indexOf(p); if (P[k + 1]) $("btn-next").classList.remove("hidden");
+          } else { b.className = "w-full text-left px-3 py-2 rounded-lg border border-red-500/60 bg-red-500/10 text-sm text-red-100"; feedback(false, "Not quite. Try another option."); }
+          save(); drawStats(); drawNav();
+        });
+        box.appendChild(b);
+      });
+    }
+    function feedback(ok, text) {
+      const f = $("feedback"); f.classList.remove("hidden");
+      f.className = "rounded-lg border px-3 py-2 text-sm " + (ok ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-100" : "border-red-500/40 bg-red-500/10 text-red-100");
+      f.textContent = text;
+    }
+    function run() {
+      if (!ready || cur.kind === "mcq") return; const sql = $("editor").value.trim(); if (!sql) return;
+      const r = window.SQLJudge.run(cur.ds, sql);
+      if (r.error) { feedback(false, "Error: " + r.error); $("result").replaceChildren(); r.db.close(); return; }
+      $("feedback").classList.add("hidden");
+      const res = r.results.length ? r.results[r.results.length - 1] : null; $("result").replaceChildren(showTable(window.SQLJudge.table(res))); r.db.close();
+    }
+    function check() {
+      if (!ready || cur.kind === "mcq") return; const sql = $("editor").value.trim(); if (!sql) { feedback(false, "Write a query first."); return; }
+      state.attempts[cur.id] = (state.attempts[cur.id] || 0) + 1;
+      let r; try { r = window.SQLJudge.judge(cur, sql); } catch (e) { feedback(false, e.message); return; }
+      $("result").replaceChildren(r.shown ? showTable(r.shown) : el("div"));
+      if (r.ok) {
+        if (!state.solved[cur.id]) { state.solved[cur.id] = Date.now(); state.xp += XP[cur.level] || 20; }
+        feedback(true, "Correct! " + (cur.kind === "dml" ? "The change you made matches the expected state." : "Your result matches the expected rows."));
+        $("explain").classList.remove("hidden"); $("explain").textContent = cur.explain; $("p-done").classList.remove("hidden");
+        const i = P.indexOf(cur); if (P[i + 1]) $("btn-next").classList.remove("hidden");
+      } else feedback(false, (r.error ? "Error: " + r.error + ". " : "") + (r.why || "Not quite."));
+      save(); drawStats(); drawNav();
+    }
+    $("btn-run").addEventListener("click", run); $("btn-check").addEventListener("click", check);
+    $("btn-hint").addEventListener("click", () => { $("hint").classList.remove("hidden"); $("hint").textContent = cur.hint || "Read each option carefully, then eliminate the ones that contradict what you know."; });
+    $("btn-solution").addEventListener("click", () => { if (cur.kind === "mcq") { $("explain").classList.remove("hidden"); $("explain").textContent = "Answer: " + cur.options[cur.answer] + ". " + cur.explain; return; } $("solution").classList.remove("hidden"); $("solution-sql").textContent = cur.solution.replace(/; /g, ";\n"); });
+    $("btn-next").addEventListener("click", () => { const i = P.indexOf(cur); if (P[i + 1]) open(P[i + 1]); });
+    $("btn-reset").addEventListener("click", () => { if (confirm("Clear all SQL progress on this device?")) { state = { solved: {}, attempts: {}, xp: 0 }; save(); drawStats(); open(P[0]); } });
+    $("editor").addEventListener("keydown", e => {
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); run(); }
+      if (e.key === "Tab") { e.preventDefault(); const t = e.target, s = t.selectionStart; t.value = t.value.slice(0, s) + "  " + t.value.slice(t.selectionEnd); t.selectionStart = t.selectionEnd = s + 2; }
+    });
+
+    drawStats(); drawNav();
+    const base = "https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/";
+    if (typeof initSqlJs !== "function") { $("loading").innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-2 text-amber-400"></i>The SQLite engine could not be loaded (it comes from a CDN). Check your connection and reload.'; return; }
+    initSqlJs({ locateFile: f => base + f }).then(SQL => {
+      window.SQLJudge.setEngine(SQL); ready = true; $("loading").classList.add("hidden"); $("problem").classList.remove("hidden"); open(cur);
+    }).catch(e => { $("loading").textContent = "Could not start the SQLite engine: " + (e && e.message ? e.message : e); });
+  })();
+  </script>
+  <script src="../shared/pwa.js"></script>
+</body>
+</html>
