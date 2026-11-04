@@ -1,6 +1,8 @@
 # CmdCraft // Interactive Terminal & Command Mastery Arena
 
-A gamified, visual, scenario-driven command practice platform built for hands-on Linux & DevOps engineering mastery.
+A gamified, client-side learning site: Linux & DevOps drills on a simulated machine, Linux theory and interview prep, an AI/GenAI interview track and a 38-day SQL roadmap with a real in-browser SQL engine. Works offline as a PWA.
+
+**Status and history:** see [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) for what has been built so far, the quality gates, how to release and what is next. The sections below describe the Linux practice app in detail.
 
 ---
 
@@ -96,6 +98,10 @@ linux/
   content/            scenarios.js, goals.js, curriculum*.js, drills-*.js, incidents-more.js, interview-data.js
   tools/              build_scenarios.py (writes content/scenarios.js)
   docs/               source notes ("linux chat")
+ai/                   AI interview track (content/qa-*.js, hard-*.js, pro-*.js)
+sql/                  SQL roadmap: index (roadmap), learn, practice, interview, lab, coverage; content/, app/ (judge, compat)
+docs/PROJECT_STATUS.md what exists, tests, release steps, next steps
+tests/  tools/        node test suites and build scripts (not published)
 ```
 
 ### Adding a subject (SQL, Python, React, AI...)
